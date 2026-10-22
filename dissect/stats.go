@@ -223,6 +223,9 @@ func (m *MatchReader) PlayerStats() []PlayerMatchStats {
 	stats := make([]PlayerMatchStats, 0)
 	index := make(map[string]int)
 	for i, r := range m.rounds {
+		if r == nil {
+			continue
+		}
 		for _, p := range r.PlayerStats() {
 			if len(stats) == 0 || stats[index[p.Username]].Username != p.Username {
 				stats = append(stats, PlayerMatchStats{
