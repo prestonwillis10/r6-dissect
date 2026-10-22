@@ -189,13 +189,13 @@ func TestDecompressedSizeHint(t *testing.T) {
 		}
 	})
 	t.Run("garbage_and_cap", func(t *testing.T) {
-		g := append(frameWithFCS(1<<40), make([]byte, 64-13)...)
+		g := append(frameWithFCS(1<<40), make([]byte, 64-16)...)
 		if h := decompressedSizeHint(g); h != maxSizeHintRatio*len(g) {
 			t.Errorf("hint %d, want the cap %d", h, maxSizeHintRatio*len(g))
 		}
 	})
 	t.Run("cap_across_frames", func(t *testing.T) {
-		// each frame is under the cap alone (32*39 = 1248 > 1000), the sum is over it
+		// each frame is under the cap alone (32*48 = 1536 > 600), the sum (1800) is over it
 		var g []byte
 		for i := 0; i < 3; i++ {
 			g = append(g, frameWithFCS(600)...)
