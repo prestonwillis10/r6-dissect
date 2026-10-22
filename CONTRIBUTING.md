@@ -22,7 +22,7 @@ This fork does not forward changes upstream, and upstream changes are not merged
   go build ./...
   go build -buildmode=c-shared -o /tmp/libr6dissect exports/exports.go
   go test -race -count=1 ./...
-  test -z "$(gofmt -l . | tee /dev/stderr)"
+  ! gofmt -l . | grep .
   go vet ./...
   go mod tidy -diff
   go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
@@ -37,7 +37,7 @@ This fork does not forward changes upstream, and upstream changes are not merged
 - Every pull request from outside contributors is reviewed by the maintainer and is **merged only with the maintainer's explicit approval**. Automated checks and automated or AI review may comment on a PR, but they never merge an outside contribution on their own.
 - If new commits are pushed after approval, they need another look before merge.
 - The maintainer may ask for changes or for the PR to be split. A PR that doesn't fit the fork's direction may be closed. Opening an issue first is the best way to avoid that.
-- PRs are merged with a merge commit. If "Allow edits by maintainers" is on, the maintainer may push small fixups to your branch before merging.
+- PRs are merged with a merge commit. If "Allow edits and access to secrets by maintainers" is on, the maintainer may push small fixups to your branch before merging.
 
 ## License
 
