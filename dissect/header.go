@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -256,6 +257,12 @@ func (i *GameMode) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
+// Known reports whether i is a declared Map constant. An unknown map still
+// parses; its name prints as Map(<id>), which is stringer's fallback.
+func (i Map) Known() bool {
+	return !strings.HasPrefix(i.String(), "Map(")
+}
+
 func (i Map) MarshalJSON() (text []byte, err error) {
 	return json.Marshal(stringerIntMarshal{
 		Name: i.String(),
@@ -463,6 +470,9 @@ func (r *Reader) readHeader() (Header, error) {
 		return h, err
 	}
 	h.Map = Map(n)
+	if !h.Map.Known() {
+		log.Warn().Int("worldid", n).Msg("unknown map id; add it to the Map constants in header.go")
+	}
 	// Add recording player id
 	u, err := strconv.ParseUint(props["recordingplayerid"], 10, 64)
 	if err != nil {

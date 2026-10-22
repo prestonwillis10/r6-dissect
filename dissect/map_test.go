@@ -46,3 +46,24 @@ func TestMapNames(t *testing.T) {
 		}
 	}
 }
+
+// TestMapUnknown pins the unknown-id fallback: it still parses, keeps a
+// non-empty unique name (R6Stats rejects an empty one), and is not Known.
+func TestMapUnknown(t *testing.T) {
+	if Map(1).Known() {
+		t.Error("Map(1).Known() = true, want false")
+	}
+	if !Map(398899676157).Known() {
+		t.Error("FortressY10 Known() = false, want true")
+	}
+	if !VillaY10.Known() || !CalypsoCasino.Known() {
+		t.Error("new constants must be Known")
+	}
+	b, err := json.Marshal(Map(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"name":"Map(1)","id":1}`; string(b) != want {
+		t.Errorf("Map(1) JSON = %s, want %s", b, want)
+	}
+}
