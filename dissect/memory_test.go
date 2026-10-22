@@ -14,8 +14,9 @@ import (
 const (
 	chunkedFixture    = "test/data/replays/valid/Y11S2/custom_early_plant.rec" // Y8S4+: chunked zstd sections
 	nonChunkedFixture = "test/data/replays/valid/Y8S1/ranked_1.rec"            // pre-Y8S4: one zstd stream
-	matchFixtureDir   = "test/data/replays/valid/Y8S2"
 )
+
+var matchFixtureDirs = []string{"test/data/replays/valid/Y8S2", "test/data/replays/valid/Y11S2"}
 
 // quiet silences the debug logs for the test and restores the previous level after it.
 func quiet(t testing.TB) {
@@ -120,41 +121,45 @@ func TestNewReader_CorruptInputDoesNotLeakGoroutines(t *testing.T) {
 
 func TestMatchReader_DoesNotPinRoundBuffers(t *testing.T) {
 	quiet(t)
-	f, err := os.Open(matchFixtureDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	m, err := NewMatchReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := m.Read(); !Ok(err) {
-		t.Fatal(err)
-	}
-	runtime.GC()
-	runtime.GC()
-	var ms runtime.MemStats
-	runtime.ReadMemStats(&ms)
-	t.Logf("rounds=%d live heap after Read+GC: %.1f MiB", m.NumRounds(), float64(ms.HeapAlloc)/(1<<20))
-	for i := 0; i < m.NumRounds(); i++ {
-		r, _ := m.RoundAt(i)
-		for _, p := range r.Header.Players {
-			if cap(p.DissectID) > 16 {
-				t.Errorf("round %d player %q: DissectID cap=%d, still a window into the round buffer", i, p.Username, cap(p.DissectID))
+	for _, dir := range matchFixtureDirs {
+		t.Run(dir, func(t *testing.T) {
+			f, err := os.Open(dir)
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
-		for _, p := range r.Scoreboard.Players {
-			if cap(p.ID) > 16 {
-				t.Errorf("round %d: Scoreboard ID cap=%d, still a window into the round buffer", i, cap(p.ID))
+			defer f.Close()
+			m, err := NewMatchReader(f)
+			if err != nil {
+				t.Fatal(err)
 			}
-		}
+			if err := m.Read(); !Ok(err) {
+				t.Fatal(err)
+			}
+			runtime.GC()
+			runtime.GC()
+			var ms runtime.MemStats
+			runtime.ReadMemStats(&ms)
+			t.Logf("rounds=%d live heap after Read+GC: %.1f MiB", m.NumRounds(), float64(ms.HeapAlloc)/(1<<20))
+			for i := 0; i < m.NumRounds(); i++ {
+				r, _ := m.RoundAt(i)
+				for _, p := range r.Header.Players {
+					if cap(p.DissectID) > 16 {
+						t.Errorf("round %d player %q: DissectID cap=%d, still a window into the round buffer", i, p.Username, cap(p.DissectID))
+					}
+				}
+				for _, p := range r.Scoreboard.Players {
+					if cap(p.ID) > 16 {
+						t.Errorf("round %d: Scoreboard ID cap=%d, still a window into the round buffer", i, cap(p.ID))
+					}
+				}
+			}
+			const limit = 32 << 20
+			if ms.HeapAlloc > limit {
+				t.Errorf("live heap %d MiB > %d MiB after Read: round buffers are still reachable", ms.HeapAlloc>>20, limit>>20)
+			}
+			runtime.KeepAlive(m)
+		})
 	}
-	const limit = 32 << 20
-	if ms.HeapAlloc > limit {
-		t.Errorf("live heap %d MiB > %d MiB after Read: round buffers are still reachable", ms.HeapAlloc>>20, limit>>20)
-	}
-	runtime.KeepAlive(m)
 }
 
 func TestDecompressedSizeHint(t *testing.T) {
