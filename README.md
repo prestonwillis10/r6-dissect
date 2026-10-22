@@ -131,7 +131,7 @@ func main() {
 ```
 
 ## Shared Library (FFI)
-Each release includes `libr6dissect` for Linux, Windows and macOS, for use from other languages via FFI.
+Each release includes `libr6dissect` for Linux and Windows, for use from other languages via FFI.
 ```c
 char* dissect_read(char* path); // returns {"data": ...} or {"error": "..."} as JSON
 void dissect_free(char* ptr);   // release the string returned by dissect_read
