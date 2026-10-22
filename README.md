@@ -163,5 +163,8 @@ Each `.rec` file in `dissect/test/data/replays/valid` is parsed and compared wit
 go test ./dissect/test -run TestReader_Read -update
 ```
 
+## Contributing
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how pull requests are reviewed and merged.
+
 #
 I would like to thank [stnokott](https://github.com/stnokott) for their work on r6-dissect, along with [draguve](https://github.com/draguve) & other contributors at [draguve/R6-Replays](https://github.com/draguve/R6-Replays) for their additional reverse engineering work.
