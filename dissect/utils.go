@@ -122,7 +122,7 @@ func (c *excelCompass) Bool(b bool) *excelCompass {
 }
 
 func (c *excelCompass) Int(n int) *excelCompass {
-	c.f.SetCellInt(c.s, c.Cell(), n)
+	c.f.SetCellInt(c.s, c.Cell(), int64(n))
 	return c
 }
 
