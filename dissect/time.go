@@ -190,6 +190,9 @@ func readTime(r *Reader) error {
 
 func readY7Time(r *Reader) error {
 	time, err := r.String()
+	if err != nil {
+		return err
+	}
 	parts := strings.Split(time, ":")
 	if len(parts) == 1 {
 		seconds, err := strconv.ParseFloat(parts[0], 64)
@@ -249,7 +252,6 @@ func (r *Reader) roundEnd() {
 				dead[u.Target] = true
 				deaths[r.Header.Players[ti].TeamIndex]++
 			}
-			break
 		case Death:
 			if ti := r.PlayerIndexByUsername(u.Username); ti >= 0 && !dead[u.Username] {
 				dead[u.Username] = true
@@ -259,10 +261,8 @@ func (r *Reader) roundEnd() {
 			// the planter may be unknown, the defuser was planted regardless
 			planted = true
 			planter = r.PlayerIndexByUsername(u.Username)
-			break
 		case DefuserDisableStart:
 			disabler = r.PlayerIndexByUsername(u.Username)
-			break
 		case DefuserDisableComplete:
 			if r.Header.CodeVersion >= Y9S4 {
 				winningTeam := 0

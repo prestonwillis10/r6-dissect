@@ -133,7 +133,7 @@ func main() {
 ```
 
 ## Shared Library (FFI)
-Each release includes `libr6dissect` for Linux, Windows and macOS, for use from other languages via FFI.
+Each release includes `libr6dissect` for Linux and Windows, for use from other languages via FFI.
 ```c
 char* dissect_read(char* path); // returns {"data": ...} or {"error": "..."} as JSON
 void dissect_free(char* ptr);   // release the string returned by dissect_read
@@ -168,6 +168,9 @@ Whole matches that are too large to commit can be checked with `TestAcceptance_R
 ```bash
 R6_DISSECT_REPLAY_DIRS=/path/to/Match-A:/path/to/Match-B go test ./dissect/test -run TestAcceptance -v
 ```
+
+## Contributing
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how pull requests are reviewed and merged.
 
 #
 I would like to thank [stnokott](https://github.com/stnokott) for their work on r6-dissect, along with [draguve](https://github.com/draguve) & other contributors at [draguve/R6-Replays](https://github.com/draguve/R6-Replays) for their additional reverse engineering work.
