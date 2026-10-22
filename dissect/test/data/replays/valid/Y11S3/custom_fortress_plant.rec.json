@@ -1,0 +1,406 @@
+{
+	"header": {
+		"gameVersion": "Y11S3_Alpha04",
+		"codeVersion": 9950954,
+		"timestamp": "2026-10-18T18:20:45Z",
+		"matchType": {
+			"name": "CustomGameOnline",
+			"id": 4
+		},
+		"map": {
+			"name": "FortressY10",
+			"id": 398899676157
+		},
+		"site": "2F Dormitory, 2F Games Room",
+		"recordingPlayerID": 7461518695322221803,
+		"recordingProfileID": "241f940a-bb22-4067-87c5-4e22de1fb015",
+		"additionalTags": "423855620",
+		"gamemode": {
+			"name": "Bomb",
+			"id": 327933806
+		},
+		"roundsPerMatch": 20,
+		"roundsPerMatchOvertime": 0,
+		"roundNumber": 1,
+		"overtimeRoundNumber": 0,
+		"teams": [
+			{
+				"name": "YOUR TEAM",
+				"startingScore": 0,
+				"score": 1,
+				"won": true,
+				"winCondition": "DefusedBomb",
+				"role": "Attack"
+			},
+			{
+				"name": "ENEMY TEAM",
+				"startingScore": 1,
+				"score": 1,
+				"won": false,
+				"role": "Defense"
+			}
+		],
+		"players": [
+			{
+				"id": 3279077634329640947,
+				"profileID": "a7729c1a-8c19-4499-9691-0f5c9a029135",
+				"username": "Ren.HRC",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Mira",
+					"id": 92270644319
+				},
+				"heroName": 38576458766,
+				"alliance": 4,
+				"roleImage": 39149215445,
+				"roleName": "MIRA",
+				"rolePortrait": 39149215469,
+				"spawn": "2F Dormitory, 2F Games Room",
+				"loadout": {
+					"primary": 44316587819,
+					"secondary": 39149216440,
+					"gadget": 133651070294,
+					"ability": 133651069324
+				}
+			},
+			{
+				"id": 13018787896865845703,
+				"profileID": "77e5436e-961d-4e06-9f06-9f724735e2cc",
+				"username": "Breck.HRC",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Warden",
+					"id": 104189662920
+				},
+				"heroName": 189095391481,
+				"alliance": 4,
+				"roleImage": 104189662842,
+				"roleName": "WARDEN",
+				"rolePortrait": 104189662868,
+				"spawn": "2F Dormitory, 2F Games Room",
+				"loadout": {
+					"primary": 1366019508,
+					"secondary": 78526932130,
+					"gadget": 133651070282,
+					"ability": 201523838440
+				}
+			},
+			{
+				"id": 9842763141416488852,
+				"profileID": "ad0dc6a3-10b7-4277-a41a-9fba23ed26fd",
+				"username": "kodexHLB.HRC",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Ela",
+					"id": 92270644163
+				},
+				"heroName": 38576460310,
+				"alliance": 4,
+				"roleImage": 39149215589,
+				"roleName": "ELA",
+				"rolePortrait": 39149215613,
+				"spawn": "2F Dormitory, 2F Games Room",
+				"loadout": {
+					"primary": 68967567508,
+					"secondary": 68967567430,
+					"gadget": 133651070318,
+					"ability": 133651070252
+				}
+			},
+			{
+				"id": 14979924227406743325,
+				"profileID": "a31a1a70-be0d-4500-9523-c27d54169dc1",
+				"username": "ZagHLB.HRC",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Azami",
+					"id": 378305069945
+				},
+				"heroName": 373332356036,
+				"alliance": 4,
+				"roleImage": 375628889901,
+				"roleName": "AZAMI",
+				"rolePortrait": 378305072064,
+				"spawn": "2F Dormitory, 2F Games Room",
+				"loadout": {
+					"primary": 1366019652,
+					"secondary": 34160268720,
+					"gadget": 133651070258,
+					"ability": 375628878643
+				}
+			},
+			{
+				"id": 8166568212313493638,
+				"profileID": "9e24be86-d9fe-4e96-8594-3e9af073f0ef",
+				"username": "drew.DD",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Wamai",
+					"id": 104189663803
+				},
+				"heroName": 222844205628,
+				"alliance": 4,
+				"roleImage": 104189663738,
+				"roleName": "WAMAI",
+				"rolePortrait": 104189663764,
+				"spawn": "2F Dormitory, 2F Games Room",
+				"loadout": {
+					"primary": 1366019592,
+					"secondary": 139558931725,
+					"gadget": 133651070282,
+					"ability": 201523838464
+				}
+			},
+			{
+				"id": 16817989891608132895,
+				"profileID": "5503d991-e213-4d33-876e-98ac9ee51b71",
+				"username": "Mako.NKG",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Ace",
+					"id": 104189664390
+				},
+				"heroName": 255200030683,
+				"alliance": 3,
+				"roleImage": 104189664325,
+				"roleName": "ACE",
+				"rolePortrait": 104189664403,
+				"spawn": "Garden",
+				"loadout": {
+					"primary": 1366019220,
+					"secondary": 1366019472,
+					"gadget": 133651070288,
+					"ability": 201523838482
+				}
+			},
+			{
+				"id": 17299946831944130016,
+				"profileID": "4ec3044a-1569-455f-b80b-d25b9f130801",
+				"username": "FallacyAsTR.NKG",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Blitz",
+					"id": 92270642539
+				},
+				"heroName": 350237867,
+				"alliance": 3,
+				"roleImage": 2461366787,
+				"roleName": "BLITZ",
+				"rolePortrait": 27880706745,
+				"spawn": "Main Gate",
+				"loadout": {
+					"primary": 133651069198,
+					"secondary": 1366019496,
+					"gadget": 133651070312
+				}
+			},
+			{
+				"id": 7461518695322221803,
+				"profileID": "241f940a-bb22-4067-87c5-4e22de1fb015",
+				"username": "NickB2A",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Deimos",
+					"id": 374667787816
+				},
+				"heroName": 402828612923,
+				"alliance": 3,
+				"roleImage": 374667786331,
+				"roleName": "DEIMOS",
+				"rolePortrait": 374667786359,
+				"spawn": "Stable",
+				"loadout": {
+					"primary": 1366019508,
+					"secondary": 405866692215,
+					"gadget": 133651070436,
+					"ability": 401511231600
+				}
+			},
+			{
+				"id": 5461404230027990656,
+				"profileID": "a0cf091b-d880-4d52-8915-ae4cd032d155",
+				"username": "scorpion.NKG",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Grim",
+					"id": 374667788042
+				},
+				"heroName": 385049521818,
+				"alliance": 3,
+				"roleImage": 374667788033,
+				"roleName": "GRIM",
+				"rolePortrait": 374667788040,
+				"spawn": "Garden",
+				"loadout": {
+					"primary": 1366019328,
+					"secondary": 127174503972,
+					"gadget": 263047965420,
+					"ability": 374667788026
+				}
+			},
+			{
+				"id": 6366317606386794496,
+				"profileID": "4c85c133-eeed-4ed2-b713-b65d0f7e7b80",
+				"username": "Yoejinzera.NKG",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Glaz",
+					"id": 92270642084
+				},
+				"alliance": 0,
+				"spawn": "Stable",
+				"loadout": {
+					"primary": 9817293379,
+					"secondary": 39149214668,
+					"gadget": 133651070312,
+					"ability": 133651069270
+				}
+			}
+		],
+		"gmSettings": [],
+		"matchID": "c9c2270b-c0a4-4447-b3be-15fb3393a11c"
+	},
+	"matchFeedback": [
+		{
+			"type": {
+				"name": "OperatorSwap",
+				"id": 7
+			},
+			"username": "NickB2A",
+			"time": "0:30",
+			"timeInSeconds": 30,
+			"phase": "Prep",
+			"elapsedSeconds": -30,
+			"operator": {
+				"name": "Deimos",
+				"id": 374667787816
+			}
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "FallacyAsTR.NKG",
+			"target": "drew.DD",
+			"headshot": true,
+			"time": "1:46",
+			"timeInSeconds": 106,
+			"phase": "Action",
+			"elapsedSeconds": 73
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Breck.HRC",
+			"target": "NickB2A",
+			"headshot": true,
+			"time": "1:40",
+			"timeInSeconds": 100,
+			"phase": "Action",
+			"elapsedSeconds": 79
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Yoejinzera.NKG",
+			"target": "Ren.HRC",
+			"headshot": false,
+			"time": "1:29",
+			"timeInSeconds": 89,
+			"phase": "Action",
+			"elapsedSeconds": 90
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Breck.HRC",
+			"target": "Mako.NKG",
+			"headshot": false,
+			"time": "0:53",
+			"timeInSeconds": 53,
+			"phase": "Action",
+			"elapsedSeconds": 126
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "scorpion.NKG",
+			"target": "ZagHLB.HRC",
+			"headshot": false,
+			"time": "0:46",
+			"timeInSeconds": 46,
+			"phase": "Action",
+			"elapsedSeconds": 133
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Breck.HRC",
+			"target": "FallacyAsTR.NKG",
+			"headshot": true,
+			"time": "0:45",
+			"timeInSeconds": 45,
+			"phase": "Action",
+			"elapsedSeconds": 134
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Yoejinzera.NKG",
+			"target": "Breck.HRC",
+			"headshot": true,
+			"time": "0:29",
+			"timeInSeconds": 29,
+			"phase": "Action",
+			"elapsedSeconds": 150
+		},
+		{
+			"type": {
+				"name": "DefuserPlantStart",
+				"id": 2
+			},
+			"username": "Yoejinzera.NKG",
+			"time": "0:19",
+			"timeInSeconds": 19,
+			"phase": "Action",
+			"elapsedSeconds": 160
+		},
+		{
+			"type": {
+				"name": "DefuserPlantComplete",
+				"id": 3
+			},
+			"username": "Yoejinzera.NKG",
+			"time": "0:12",
+			"timeInSeconds": 12,
+			"phase": "Action",
+			"elapsedSeconds": 167
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "scorpion.NKG",
+			"target": "kodexHLB.HRC",
+			"headshot": true,
+			"time": "0:00",
+			"timeInSeconds": 0,
+			"phase": "PostPlant",
+			"elapsedSeconds": 170
+		}
+	]
+}

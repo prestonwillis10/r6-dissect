@@ -46,6 +46,9 @@ type Reader struct {
 	Header                 Header             `json:"header"`
 	MatchFeedback          []MatchUpdate      `json:"matchFeedback"`
 	Scoreboard             Scoreboard
+	timelineEnabled        bool
+	timeline               *Timeline
+	timelineErr            *TimelineError
 }
 
 // NewReader decompresses in using zstd and
@@ -275,6 +278,7 @@ func (r *Reader) Read() (err error) {
 			r.offset = entry.offset + 1
 			n := len(r.MatchFeedback)
 			if err = listener(r); err != nil {
+				r.settleTimelineOnStop(err)
 				return
 			}
 			r.stampNew(n)
@@ -283,14 +287,31 @@ func (r *Reader) Read() (err error) {
 	if !r.readPartial {
 		n := len(r.MatchFeedback)
 		// a plant/disable still in progress when the round ends did not complete
-		r.stopDefuserRun()
+		r.stopDefuserRunAtRoundEnd()
 		r.roundEnd()
 		r.stampNew(n)
 		r.backfillLeadingUpdates()
 		r.applyLoadouts()
+		if r.timelineEnabled {
+			r.timeline, r.timelineErr = buildTimeline(r)
+		}
 	}
 	r.b = nil
 	return err
+}
+
+// settleTimelineOnStop keeps the timeline invariant when a listener stops the read early:
+// with the timeline enabled, exactly one of timeline and timelineErr is set after Read.
+// Nothing from the normal end-of-round path runs here, so the legacy output is unchanged.
+func (r *Reader) settleTimelineOnStop(err error) {
+	if !r.timelineEnabled || r.readPartial {
+		return
+	}
+	if Ok(err) {
+		r.timeline, r.timelineErr = buildTimeline(r)
+		return
+	}
+	r.timelineErr = &TimelineError{Reason: "round read stopped: " + err.Error()}
 }
 
 // ReadPartial continues reading the replay past the header until the full player list is read.
@@ -404,6 +425,10 @@ func (r *Reader) Uint64() (uint64, error) {
 	}
 	return binary.LittleEndian.Uint64(b), nil
 }
+
+// Data returns the decompressed replay. It is only available between NewReader and Read,
+// which releases the buffer.
+func (r *Reader) Data() []byte { return r.b }
 
 func (r *Reader) Write(w io.Writer) (n int, err error) {
 	return w.Write(r.b)

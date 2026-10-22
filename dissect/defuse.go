@@ -225,7 +225,7 @@ func readDefuserTimerLegacy(r *Reader, timer string) error {
 				Time:          r.timeRaw,
 				TimeInSeconds: r.time,
 			}
-			r.MatchFeedback = append(r.MatchFeedback, u)
+			r.addUpdate(u)
 			log.Debug().Interface("match_update", u).Send()
 			r.lastDefuserPlayerIndex = playerIndex
 		}
@@ -267,7 +267,7 @@ func readDefuserTimerLegacy(r *Reader, timer string) error {
 	} else {
 		r.stamp(&u)
 	}
-	r.MatchFeedback = append(r.MatchFeedback, u)
+	r.addUpdate(u)
 	if u.Type == DefuserPlantComplete {
 		r.startPostPlant()
 	}
@@ -339,8 +339,10 @@ func (r *Reader) startDefuserRun(playerIndex int, state int) {
 	case defuserStateDisabling:
 		plant = false
 	}
+	derived := false
 	if playerIndex < 0 {
 		playerIndex = r.lastAliveDefuserPlayer(plant)
+		derived = playerIndex >= 0
 	}
 	r.defuserRun = defuserRun{
 		active:      true,
@@ -359,8 +361,9 @@ func (r *Reader) startDefuserRun(playerIndex int, state int) {
 		Username:      r.Header.Players[playerIndex].Username,
 		Time:          r.timeRaw,
 		TimeInSeconds: r.time,
+		derived:       derived,
 	}
-	r.MatchFeedback = append(r.MatchFeedback, u)
+	r.addUpdate(u)
 	log.Debug().Interface("match_update", u).Send()
 	r.defuserRun.announced = true
 }
@@ -409,7 +412,7 @@ func (r *Reader) completeDefuserRun() {
 	} else {
 		r.stamp(&u)
 	}
-	r.MatchFeedback = append(r.MatchFeedback, u)
+	r.addUpdate(u)
 	if u.Type == DefuserPlantComplete {
 		r.startPostPlant()
 	}
@@ -418,6 +421,17 @@ func (r *Reader) completeDefuserRun() {
 	if username == "" {
 		r.pendingDefuserPlantIdx = len(r.MatchFeedback) - 1
 		r.pendingDefuserIsPlant = run.plant
+	}
+}
+
+// stopDefuserRunAtRoundEnd closes a plant/disable still in progress when the round ends. The stop is an
+// inference, not a packet: it has no buffer offset (-1) and is derived.
+func (r *Reader) stopDefuserRunAtRoundEnd() {
+	n := len(r.MatchFeedback)
+	r.stopDefuserRun()
+	for i := n; i < len(r.MatchFeedback); i++ {
+		r.MatchFeedback[i].offset = -1
+		r.MatchFeedback[i].derived = true
 	}
 }
 
@@ -444,6 +458,6 @@ func (r *Reader) stopDefuserRun() {
 		Phase:          run.phase,
 		ElapsedSeconds: run.elapsed,
 	}
-	r.MatchFeedback = append(r.MatchFeedback, u)
+	r.addUpdate(u)
 	log.Debug().Interface("match_update", u).Send()
 }
