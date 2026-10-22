@@ -46,7 +46,7 @@ type MatchUpdate struct {
 	// Y10S4+: the player whose scoreboard kill counter increased right before this kill packet
 	scoreboardKiller string
 	// Y10S4+: for a DBNO read from the health state, the index+1 of its transition in
-	// Reader.healthTransitions (0 otherwise)
+	// Reader.healthTransitions (0 otherwise); for a Revive, that of the down it ends
 	healthTransition int
 }
 
@@ -253,8 +253,8 @@ func (r *Reader) isDead(username string) bool {
 
 // insertByElapsed inserts u in time order: after the last event with a phase whose
 // elapsedSeconds is not later than u's. Events recorded before the clock started (no phase)
-// stay first. A Revive goes before a DBNO of its target at the same time (the player was downed
-// again right after the revive). Used for events that are only known after later events were
+// stay first. A Revive goes before a DBNO of its target at the same time, even with other events
+// in between (the player was downed again right after the revive). Used for events that are only known after later events were
 // recorded.
 func (r *Reader) insertByElapsed(u MatchUpdate) {
 	at := 0
@@ -263,9 +263,19 @@ func (r *Reader) insertByElapsed(u MatchUpdate) {
 			at = i + 1
 		}
 	}
-	for u.Type == Revive && at > 0 && r.MatchFeedback[at-1].Type == DBNO &&
-		r.MatchFeedback[at-1].Target == u.Target && r.MatchFeedback[at-1].ElapsedSeconds == u.ElapsedSeconds {
-		at--
+	if u.Type == Revive {
+		// Walk back across the whole run of events at u's second and stop before the target's
+		// next DBNO, whatever sits between. The revive's own DBNO (same healthTransition) is a
+		// floor: the revive never goes before the down it ends.
+		for i := at - 1; i >= 0; i-- {
+			e := r.MatchFeedback[i]
+			if e.Phase == "" || e.ElapsedSeconds != u.ElapsedSeconds || (e.Type == DBNO && e.healthTransition == u.healthTransition) {
+				break
+			}
+			if e.Type == DBNO && e.Target == u.Target {
+				at = i
+			}
+		}
 	}
 	r.MatchFeedback = append(r.MatchFeedback, MatchUpdate{})
 	copy(r.MatchFeedback[at+1:], r.MatchFeedback[at:])

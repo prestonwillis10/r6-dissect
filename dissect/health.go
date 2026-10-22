@@ -253,6 +253,8 @@ func (r *Reader) resolveHealthEvents() {
 				TimeInSeconds:  t.time,
 				Phase:          t.phase,
 				ElapsedSeconds: t.elapsed,
+
+				healthTransition: d.healthTransition,
 			})
 			continue
 		}
