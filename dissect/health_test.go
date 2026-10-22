@@ -223,3 +223,60 @@ func TestResolveHealth_RevivedThenQuickDownAndKill(t *testing.T) {
 		t.Fatalf("want [DBNO Revive DBNO Kill] with the second down credited to d2, got %v", r.MatchFeedback)
 	}
 }
+
+// a Revive lands before its target's next DBNO at the same second even when other events of
+// that second sit between the DBNO and the time-ordered insert point.
+func TestResolveHealth_RevivedThenQuickDownSameSecondEvent(t *testing.T) {
+	r := resolveReader([]healthTransition{tr(0, healthStateDowned, 10), tr(0, healthStateWounded, 20), tr(0, healthStateDowned, 20), tr(0, healthStateDead, 21)},
+		down("a1", 10, 0), down("a1", 20, 2), kill("a2", "d1", 20), kill("d2", "a1", 21))
+	r.resolveHealthEvents()
+	got := feedTypes(r)
+	if len(got) != 5 {
+		t.Fatalf("want 5 events, got %v", got)
+	}
+	var downs []int
+	revive := -1
+	for i, u := range r.MatchFeedback {
+		if u.Type == DBNO && u.Target == "a1" {
+			downs = append(downs, i)
+		}
+		if u.Type == Revive && u.Target == "a1" {
+			revive = i
+		}
+	}
+	if len(downs) != 2 || revive < downs[0] || revive > downs[1] {
+		t.Fatalf("want a Revive of a1 between its two downs, got %v", got)
+	}
+	for i := 1; i < len(r.MatchFeedback); i++ {
+		if r.MatchFeedback[i].ElapsedSeconds < r.MatchFeedback[i-1].ElapsedSeconds {
+			t.Fatalf("elapsedSeconds decreases at %d: %+v", i, r.MatchFeedback)
+		}
+	}
+}
+
+// a revive through a healthy state before the second down: the down is not a bleed-out.
+func TestResolveHealth_RevivedThenReDownViaHealthy(t *testing.T) {
+	r := resolveReader([]healthTransition{
+		tr(0, healthStateDowned, 10), tr(0, healthStateWounded, 20), tr(0, 0, 20),
+		tr(0, healthStateDowned, 21), tr(0, healthStateDead, 21),
+	}, down("a1", 10, 0), down("a1", 21, 3), kill("d2", "a1", 21))
+	r.resolveHealthEvents()
+	want := []MatchUpdateType{DBNO, Revive, DBNO, Kill}
+	got := feedTypes(r)
+	if len(got) != 4 || got[0] != want[0] || got[1] != want[1] || got[2] != want[2] || got[3] != want[3] {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+}
+
+// the next transition after the exit from the downed state is another down: the first down was
+// revived even when a Kill of the target sits inside the death window before the second DBNO in
+// the feed (that Kill belongs to the second down).
+func TestResolveHealth_RevivedKillBeforeSecondDownInFeed(t *testing.T) {
+	r := resolveReader([]healthTransition{
+		tr(0, healthStateDowned, 10), tr(0, healthStateWounded, 20), tr(0, healthStateDowned, 21), tr(0, healthStateDead, 25),
+	}, down("a1", 10, 0), kill("d2", "a1", 21), down("a1", 21, 2))
+	r.resolveHealthEvents()
+	if got := feedTypes(r); len(got) != 4 || got[1] != Revive {
+		t.Fatalf("want the first down revived, got %v", got)
+	}
+}
