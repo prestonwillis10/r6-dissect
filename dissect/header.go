@@ -126,6 +126,10 @@ const (
 	NighthavenLabsY10  Map = 418119057546
 	ConsulateY10       Map = 418126004176
 	FortressY10        Map = 398899676157
+	VillaY10           Map = 409325881472
+	TowerY10           Map = 423767322185
+	CoastlineY10       Map = 436375283234
+	CalypsoCasino      Map = 419965653950
 
 	KilledOpponents  WinCondition = "KilledOpponents"
 	SecuredArea      WinCondition = "SecuredArea" // TODO
