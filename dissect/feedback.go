@@ -254,8 +254,8 @@ func (r *Reader) isDead(username string) bool {
 // insertByElapsed inserts u in time order: after the last event with a phase whose
 // elapsedSeconds is not later than u's. Events recorded before the clock started (no phase)
 // stay first. A Revive goes before a DBNO of its target at the same time, even with other events
-// in between (the player was downed again right after the revive). Used for events that are only known after later events were
-// recorded.
+// in between (the player was downed again right after the revive). Used for events that are only
+// known after later events were recorded.
 func (r *Reader) insertByElapsed(u MatchUpdate) {
 	at := 0
 	for i, e := range r.MatchFeedback {
