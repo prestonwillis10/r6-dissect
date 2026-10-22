@@ -19,6 +19,7 @@ const (
 	kindNotArray  = "not-array"      // a round's matchFeedback or stats is not a JSON array
 	kindScoreDrop = "score-drop"     // a player's cumulative score went down between rounds
 	kindNondet    = "nondeterminism" // two reads of the same match differ
+	kindNoScores  = "no-scores"      // every round's scores are 0, so the score check had nothing to compare
 )
 
 // knownFailure is a corpus folder that fails an invariant today because of a bug another issue owns.
@@ -188,6 +189,7 @@ func checkMatchJSON(b []byte) []finding {
 		return append(found, finding{kindNotArray, "output is not valid JSON: " + err.Error()})
 	}
 	prev := map[string]int{}
+	scored := 0
 	for i, r := range out.Rounds {
 		for _, key := range []string{"matchFeedback", "stats"} {
 			if v := strings.TrimSpace(string(r[key])); !strings.HasPrefix(v, "[") {
@@ -208,6 +210,7 @@ func checkMatchJSON(b []byte) []finding {
 		if allZero { // no scoreboard recorded (e.g. a round forfeited in prep)
 			continue
 		}
+		scored++
 		cur := map[string]int{}
 		for _, s := range stats {
 			cur[s.Username] = s.Score
@@ -216,6 +219,9 @@ func checkMatchJSON(b []byte) []finding {
 			}
 		}
 		prev = cur
+	}
+	if scored == 0 {
+		found = append(found, finding{kindNoScores, fmt.Sprintf("none of %d rounds has a non-zero score", len(out.Rounds))})
 	}
 	return found
 }
