@@ -117,11 +117,16 @@ func (r *Reader) readChunkedData(genericReader io.Reader) error {
 	}
 	log.Debug().Msg("decompressing data")
 	zstdMagic := []byte{0x28, 0xB5, 0x2F, 0xFD}
-	zstdReader, _ := zstd.NewReader(nil)
+	// Sections are small, so the synchronous decoder is as fast and allocates far less.
+	zstdReader, err := zstd.NewReader(nil, zstd.WithDecoderConcurrency(1))
+	if err != nil {
+		return err
+	}
+	defer zstdReader.Close()
 	memoryReader := bytes.NewReader(nil)
 	patternIndex := 0
 	sections := 0
-	data := make([]byte, 0)
+	data := appendWriter{b: make([]byte, 0, decompressedSizeHint(r.b[r.offset:]))}
 	for !errors.Is(err, io.EOF) {
 		for patternIndex != 4 {
 			b, scanErr := r.Bytes(1)
@@ -148,14 +153,14 @@ func (r *Reader) readChunkedData(genericReader io.Reader) error {
 		if err = zstdReader.Reset(&tempReader); err != nil {
 			return err
 		}
-		decompressed, err := io.ReadAll(zstdReader)
-		if err != nil && !(len(decompressed) > 0 && errors.Is(err, zstd.ErrMagicMismatch)) {
+		// decode straight onto the end of data instead of into a new buffer per section
+		n, err := zstdReader.WriteTo(&data)
+		if err != nil && !(n > 0 && errors.Is(err, zstd.ErrMagicMismatch)) {
 			return err
 		}
-		data = append(data, decompressed...)
 		r.offset += tempReader.n
 	}
-	r.b = data
+	r.b = data.b
 	r.offset = 0
 	log.Debug().Int("zstd_sections", sections).Send()
 	return nil
@@ -166,6 +171,7 @@ func (r *Reader) readNonChunkedData(genericReader io.Reader) error {
 	if err != nil {
 		return err
 	}
+	defer zstdReader.Close()
 	decompressed, err := io.ReadAll(zstdReader)
 	if err != nil && !(len(decompressed) > 0 && errors.Is(err, zstd.ErrMagicMismatch)) {
 		return err

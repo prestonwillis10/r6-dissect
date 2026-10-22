@@ -141,7 +141,7 @@ func readPlayer(r *Reader) error {
 		TeamIndex: teamIndex,
 		Operator:  Operator(op),
 		Spawn:     spawn,
-		DissectID: id,
+		DissectID: bytes.Clone(id), // a copy: a slice of r.b would pin the whole round buffer after Read
 		uiID:      uiID,
 		slotID:    slotID,
 
