@@ -276,6 +276,11 @@ func readScoreboardScoreY10S4(r *Reader, score uint32) error {
 			}
 		}
 
+		// +50 score bonus, matched with revives read from the health state
+		if prev, seen := r.lastPlayerScores[idx]; seen && score-prev == 50 && r.clock.started {
+			r.scoreRevives = append(r.scoreRevives, scoreRevive{player: idx, elapsed: r.elapsed()})
+		}
+
 		r.lastPlayerScores[idx] = score
 	}
 	log.Debug().
