@@ -280,3 +280,34 @@ func TestResolveHealth_RevivedKillBeforeSecondDownInFeed(t *testing.T) {
 		t.Fatalf("want the first down revived, got %v", got)
 	}
 }
+
+// a revive whose state change lands in the same second as the down it ends goes after that
+// down, even when another event of that second sits between them (the floor in insertByElapsed).
+func TestResolveHealth_RevivedSameSecondAsItsDown(t *testing.T) {
+	r := resolveReader([]healthTransition{tr(0, healthStateDowned, 20), tr(0, healthStateWounded, 20)},
+		down("a1", 20, 0), kill("a2", "d1", 20))
+	r.resolveHealthEvents()
+	want := []MatchUpdateType{DBNO, Kill, Revive}
+	got := feedTypes(r)
+	if len(got) != 3 || got[0] != want[0] || got[1] != want[1] || got[2] != want[2] {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+}
+
+// two revives of one player in one second: each lands after the down it ends.
+func TestResolveHealth_TwoRevivesSameSecond(t *testing.T) {
+	r := resolveReader([]healthTransition{
+		tr(0, healthStateDowned, 10), tr(0, healthStateWounded, 20), tr(0, healthStateDowned, 20), tr(0, healthStateWounded, 20),
+	}, down("a1", 10, 0), down("a1", 20, 2), kill("a2", "d1", 20))
+	r.resolveHealthEvents()
+	want := []MatchUpdateType{DBNO, Revive, DBNO, Kill, Revive}
+	got := feedTypes(r)
+	if len(got) != len(want) {
+		t.Fatalf("want %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("want %v, got %v", want, got)
+		}
+	}
+}
