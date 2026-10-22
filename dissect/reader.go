@@ -152,9 +152,7 @@ func (r *Reader) readChunkedData(genericReader io.Reader) error {
 		if err != nil && !(len(decompressed) > 0 && errors.Is(err, zstd.ErrMagicMismatch)) {
 			return err
 		}
-		for _, b := range decompressed {
-			data = append(data, b)
-		}
+		data = append(data, decompressed...)
 		r.offset += tempReader.n
 	}
 	r.b = data
