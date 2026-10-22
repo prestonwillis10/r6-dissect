@@ -16,13 +16,13 @@ This fork does not forward changes upstream, and upstream changes are not merged
 - One focused change per PR, opened against `main`. Leave out unrelated reformatting, refactors and dependency bumps.
 - In the description, cover the problem, the fix and how you tested it, and link the issue if there is one. The [pull request template](.github/pull_request_template.md) lays this out.
 - A bug fix comes with a test that fails without the fix, wherever that is practical. If the parsed output changes on purpose, regenerate the golden files (see [Tests](README.md#tests)) and say why in the PR.
-- CI must pass. To run the same checks locally:
+- CI must pass. To run the same checks locally (the shared-library build and `-race` need cgo and a C compiler):
 
   ```bash
   go build ./...
   go build -buildmode=c-shared -o /tmp/libr6dissect exports/exports.go
   go test -race -count=1 ./...
-  test -z "$(gofmt -l .)"
+  gofmt -l .   # must print nothing
   go vet ./...
   go mod tidy -diff
   go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
