@@ -245,3 +245,10 @@ convention in SpartanInventory. Dependabot keeps them current.
 
 1. Build & Test is Linux only. No Windows job.
 2. macOS is removed from the release workflow too; README amended.
+
+## Landed
+
+- 2026-10-22: landing PR #15 (`track/ci-linux` → `main`) merged as `bd6ccbe`; code head `c2fd88e`. Slot PRs #13 (W1) and #14 (W2). Run log: `docs/runs/2026-10-21-ci-linux.md` on the track.
+- Measured on the new workflow (PR #14 warm-cache run 39703983004): vulncheck 20s, lint 51s, test (1.26) 1m20s, test (1.27) 1m49s. Cold-cache runs: longest job 2m15s–2m18s.
+- Review Focus: items 1 (readY7Time goldens), 2 (xlsx comparison, reproduced by rev-13), 3 (cache hit, run 39703983004), 4 (PR cancel exercised, runs 39705801575 cancelled / 39705837471 success; main non-cancel reasoned only), 5 (vulncheck green on go1.27.3) exercised.
+- Deviations from this spec as written: excelize pinned to a master pseudo-version, not a tag; readY7Time returns io.EOF on a truncated payload (accepted). Open: 6 Candidates / 5 Observations in the PR #15 body for triage, including the PR #10 lint risk.
