@@ -8,20 +8,25 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   releases-matrix:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         goos: [linux, windows, darwin]
         goarch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - shell: bash
         name: Set env variables
         run: |
           c=$(git rev-parse --short HEAD); b=$(git name-rev --name-only "$c"); echo "version=$c ($b branch)" >> $GITHUB_ENV
-      - uses: wangyoucao577/go-release-action@v1.52
+      - uses: wangyoucao577/go-release-action@279495102627de7960cbc33434ab01a12bae144b # v1.55
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
@@ -39,12 +44,11 @@ jobs:
           - { runner: ubuntu-latest, goos: linux, goarch: amd64, ext: so }
           - { runner: ubuntu-24.04-arm, goos: linux, goarch: arm64, ext: so }
           - { runner: windows-latest, goos: windows, goarch: amd64, ext: dll }
-          - { runner: macos-latest, goos: darwin, goarch: arm64, ext: dylib }
-          - { runner: macos-latest, goos: darwin, goarch: amd64, ext: dylib, cc: "clang -arch x86_64" }
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: Build
@@ -53,14 +57,12 @@ jobs:
           CGO_ENABLED: "1"
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CC: ${{ matrix.cc }}
         run: |
-          if [ -z "$CC" ]; then unset CC; fi
           name=libr6dissect-${{ matrix.goos }}-${{ matrix.goarch }}
           go build -buildmode=c-shared -o dist/$name.${{ matrix.ext }} exports/exports.go
           mv dist/$name.h dist/libr6dissect.h
           cd dist && tar -czf ../$name.tar.gz *
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: libr6dissect-${{ matrix.goos }}-${{ matrix.goarch }}
           path: libr6dissect-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
