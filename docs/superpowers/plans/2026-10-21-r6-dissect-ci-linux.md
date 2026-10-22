@@ -6,7 +6,7 @@
 
 **Architecture:** Two PRs against `prestonwillis10/r6-dissect` `main`. PR 1 (`chore:`) makes the code pass staticcheck and bumps excelize so the new gates have nothing pre-existing to flag. PR 2 (`ci:`) rewrites `build-test.yaml` into three Linux jobs, strips macOS from `release.yaml`, hardens `operators.yaml`, adds Dependabot, and amends the README.
 
-**Tech Stack:** Go 1.26/1.27, GitHub Actions (hosted ubuntu-latest), staticcheck v0.8.2, govulncheck v1.9.0, excelize v2.11.0.
+**Tech Stack:** Go 1.26/1.27, GitHub Actions (hosted ubuntu-latest), staticcheck v0.8.2, govulncheck v1.9.0, excelize master pseudo-version v2.11.1-0.20261020033641-611b222fd8f7 (see Task 2 note).
 
 **Spec:** `docs/superpowers/specs/2026-10-21-r6-dissect-ci-linux-design.md` (in the R6Stats repo; the code lives in the `r6-dissect` fork checkout at `/home/prest/projects/R6Stats/r6-dissect`).
 
@@ -94,6 +94,8 @@ git commit -m "chore: fix staticcheck findings (unused err, dead breaks, unused 
 ```
 
 ### Task 2: Bump excelize to v2.11.0
+
+> **Amended 2026-10-22 during execution (W1, PR #13):** the newest tag v2.11.0 still has GO-2026-6688 and GO-2026-6684 reachable under govulncheck v1.9.0 (the vuln DB moved after the evaluation). The orchestrator decided to pin the master pseudo-version `v2.11.1-0.20261020033641-611b222fd8f7` instead; Dependabot (Task 5) advances it to the next tag. v2.11.x also changed `SetCellInt` to take `int64`, so the `Int` wrapper in `dissect/utils.go` gained an `int64(n)` conversion inside the bump commit. Read `v2.11.0` below as that pseudo-version.
 
 **Files:**
 - Modify: `go.mod` (`github.com/xuri/excelize/v2 v2.9.0` → `v2.11.0`), `go.sum`

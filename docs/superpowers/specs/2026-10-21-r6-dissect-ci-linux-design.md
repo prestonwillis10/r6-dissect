@@ -157,7 +157,7 @@ Done in the same PR or a preceding one, before the lint job is made blocking:
   unused type `hexEventComparison` in `dissect/utils.go:47`; loop-to-append
   in `dissect/reader.go:155`; plus whatever the remaining findings are once
   staticcheck is run at the pinned version.
-- Bump `github.com/xuri/excelize/v2` v2.9.0 → latest v2.11.x. No test covers
+- Bump `github.com/xuri/excelize/v2` v2.9.0 → latest v2.11.x (amended 2026-10-22: pinned to the master pseudo-version `v2.11.1-0.20261020033641-611b222fd8f7` because v2.11.0 still carries two reachable findings; `SetCellInt` now takes `int64`, adapted in the `Int` wrapper). No test covers
   the xlsx export, so verification is a one-off: export one fixture match
   with `--export` before and after the bump and compare sheet names, row
   counts and cell values (not bytes; xlsx embeds timestamps). Record the
@@ -166,8 +166,12 @@ Done in the same PR or a preceding one, before the lint job is made blocking:
 - The unused `err` in `readY7Time` (`dissect/time.go:176`) is fixed by
   propagating it. `Reader.String()` returns an empty string on error, so
   today the function already fails at the following parse step; returning
-  the read error keeps behavior identical and gives a better message (my
-  call, verified by reading `Reader.String`).
+  the read error keeps behavior identical on the success path. On a
+  truncated payload the error is now `io.EOF`, which the top-level readers
+  treat as end-of-stream, the same as every sibling `r.String()` listener,
+  so a truncated time field ends the read like any other truncated field
+  instead of raising a parse error (rev-13 finding F1 on PR #13, accepted;
+  my call).
 
 ### Release workflow (`.github/workflows/release.yaml`)
 
