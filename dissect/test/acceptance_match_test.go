@@ -69,9 +69,9 @@ func TestAcceptance_Matches(t *testing.T) {
 		name := filepath.Base(dir)
 		seen[name] = true
 		t.Run(name, func(t *testing.T) {
-			first := matchJSON(t, dir)
+			first := readMatchJSON(t, dir)
 			found := checkMatchJSON(first)
-			if second := matchJSON(t, dir); !bytes.Equal(first, second) {
+			if second := readMatchJSON(t, dir); !bytes.Equal(first, second) {
 				found = append(found, finding{kindNondet, "output differs between two reads of the same match"})
 			}
 			compareToKnown(t, found, knownMatchFailures[name])
@@ -153,7 +153,7 @@ func corpusMatchDirs(t *testing.T, root string) []string {
 	return dirs
 }
 
-func matchJSON(t *testing.T, dir string) []byte {
+func readMatchJSON(t *testing.T, dir string) []byte {
 	t.Helper()
 	f, err := os.Open(dir)
 	if err != nil {
