@@ -163,6 +163,9 @@ Each `.rec` file in `dissect/test/data/replays/valid` is parsed and compared wit
 go test ./dissect/test -run TestReader_Read -update
 ```
 
+### Acceptance on real replays
+Two opt-in checks run on replays that are not committed and are skipped when their variable is unset, which is how CI runs them. `R6_DISSECT_CORPUS` is a directory of match folders for the match-level `TestAcceptance_Matches`. `R6_DISSECT_REPLAY_DIRS` is for the round-level `TestAcceptance_Replays`, when that test is present. See [scripts/corpus/README.md](scripts/corpus/README.md) for building the Y11S1 fork corpus.
+
 ## Contributing
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how pull requests are reviewed and merged.
 
