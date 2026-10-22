@@ -235,6 +235,10 @@ func (r *Reader) worker(start int, end int, wg *sync.WaitGroup, matches chan<- m
 
 // Read continues reading the replay past the header until the EOF.
 func (r *Reader) Read() (err error) {
+	if r.offset >= len(r.b) {
+		// nothing to scan: the workers would index past the end of r.b
+		return ErrNoReplayData
+	}
 	numWorkers := 5
 	var wg sync.WaitGroup
 	channel := make(chan match, 300)
