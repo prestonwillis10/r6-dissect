@@ -4,6 +4,7 @@ package main
 import "C"
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"unsafe"
 
@@ -62,8 +63,11 @@ func dissect_read(input *C.char) *C.char {
 			return C.CString(res)
 		}
 		if err := m.Read(); err != nil {
-			res := convertErrorForExport(err)
-			return C.CString(res)
+			var incomplete *dissect.IncompleteMatchError
+			if !errors.As(err, &incomplete) || len(incomplete.Skipped) == incomplete.Total {
+				res := convertErrorForExport(err)
+				return C.CString(res)
+			}
 		}
 		j := m.Data()
 		res := convertForExport(j)

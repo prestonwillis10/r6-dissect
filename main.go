@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/redraskal/r6-dissect/dissect"
@@ -148,8 +150,14 @@ func writeMatch(in *os.File, format OutputFormat, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := m.Read(); !dissect.Ok(err) {
-		return err
+	if err := m.Read(); err != nil {
+		var incomplete *dissect.IncompleteMatchError
+		if !errors.As(err, &incomplete) || len(incomplete.Skipped) == incomplete.Total {
+			return err
+		}
+		for _, s := range incomplete.Skipped {
+			log.Error().Err(s.Err).Str("file", filepath.Base(s.Path)).Msg("round skipped: the file could not be read")
+		}
 	}
 	if format == Excel {
 		return m.WriteExcel(out)
