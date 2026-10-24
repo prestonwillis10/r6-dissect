@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/redraskal/r6-dissect/dissect"
@@ -57,7 +59,7 @@ func main() {
 		return
 	}
 	if stat.IsDir() {
-		if err := writeMatch(in, format, out); err != nil {
+		if err := writeMatch(in, format, out, viper.GetString("timeline")); err != nil {
 			log.Fatal().Err(err).Send()
 		}
 		return
@@ -65,7 +67,7 @@ func main() {
 	if format == Excel {
 		log.Fatal().Msg("Dissect will only export a match folder to Excel.")
 	}
-	if err = writeRound(in, out); err != nil {
+	if err = writeRound(in, out, viper.GetString("timeline")); err != nil {
 		log.Fatal().Err(err).Send()
 	}
 }
@@ -76,6 +78,7 @@ func setup() {
 	pflag.StringP("output", "o", "", "specifies the output path")
 	pflag.BoolP("debug", "d", false, "sets log level to debug")
 	pflag.BoolP("dump", "p", false, "dumps decompressed replay to the output")
+	pflag.String("timeline", "", "write a <round>.timeline.json sidecar per round into this directory")
 	pflag.Bool("info", false, "prints the replay header")
 	pflag.BoolP("version", "v", false, "prints the version")
 	pflag.Parse()
@@ -143,13 +146,25 @@ func printHead(in *os.File) error {
 	return nil
 }
 
-func writeMatch(in *os.File, format OutputFormat, out io.Writer) error {
+func writeMatch(in *os.File, format OutputFormat, out io.Writer, timelineDir string) error {
 	m, err := dissect.NewMatchReader(in)
 	if err != nil {
 		return err
 	}
+	// Excel output has no timeline: it ignores the flag.
+	withTimeline := timelineDir != "" && format != Excel
+	if withTimeline {
+		m.EnableTimeline()
+	}
 	if err := m.Read(); !dissect.Ok(err) {
 		return err
+	}
+	if withTimeline {
+		for i, r := range m.Rounds() {
+			if err := writeRoundSidecar(timelineDir, m.Paths()[i], r); err != nil {
+				return err
+			}
+		}
 	}
 	if format == Excel {
 		return m.WriteExcel(out)
@@ -157,7 +172,43 @@ func writeMatch(in *os.File, format OutputFormat, out io.Writer) error {
 	return m.WriteJSON(out)
 }
 
-func writeRound(in io.Reader, out io.Writer) error {
+// writeRoundSidecar writes the timeline of r. A round whose timeline could not be built
+// writes no sidecar; its error is reported in the round JSON, not here.
+func writeRoundSidecar(dir, recPath string, r *dissect.Reader) error {
+	tl, err := r.Timeline()
+	var te *dissect.TimelineError
+	if errors.As(err, &te) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return writeSidecar(dir, recPath, tl)
+}
+
+// sidecarPath is <dir>/<rec file name without extension>.timeline.json.
+func sidecarPath(dir, recPath string) string {
+	base := filepath.Base(recPath)
+	return filepath.Join(dir, strings.TrimSuffix(base, filepath.Ext(base))+".timeline.json")
+}
+
+// writeSidecar writes tl compact to sidecarPath(dir, recPath), creating dir.
+func writeSidecar(dir, recPath string, tl *dissect.Timeline) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	f, err := os.Create(sidecarPath(dir, recPath))
+	if err != nil {
+		return err
+	}
+	if err := json.NewEncoder(f).Encode(tl); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+func writeRound(in *os.File, out io.Writer, timelineDir string) error {
 	r, err := dissect.NewReader(in)
 	if err != nil {
 		return err
@@ -166,16 +217,34 @@ func writeRound(in io.Reader, out io.Writer) error {
 		dissect.Header
 		MatchFeedback []dissect.MatchUpdate      `json:"matchFeedback"`
 		PlayerStats   []dissect.PlayerRoundStats `json:"stats"`
+		TimelineError *dissect.TimelineError     `json:"timelineError,omitempty"`
+	}
+	if timelineDir != "" {
+		r.EnableTimeline()
 	}
 	if err := r.Read(); !dissect.Ok(err) {
 		return err
 	}
-	encoder := json.NewEncoder(out)
-	return encoder.Encode(output{
-		r.Header,
-		r.MatchFeedback,
-		r.PlayerStats(),
-	})
+	o := output{
+		Header:        r.Header,
+		MatchFeedback: r.MatchFeedback,
+		PlayerStats:   r.PlayerStats(),
+	}
+	if timelineDir != "" {
+		tl, err := r.Timeline()
+		var te *dissect.TimelineError
+		switch {
+		case errors.As(err, &te):
+			o.TimelineError = te
+		case err != nil:
+			return err
+		default:
+			if err := writeSidecar(timelineDir, in.Name(), tl); err != nil {
+				return err
+			}
+		}
+	}
+	return json.NewEncoder(out).Encode(o)
 }
 
 func writeRoundDump(in io.Reader, out *os.File) error {

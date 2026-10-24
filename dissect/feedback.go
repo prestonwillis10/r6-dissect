@@ -46,6 +46,19 @@ type MatchUpdate struct {
 	TeamKill       bool            `json:"teamKill,omitempty"`
 	// Y10S4+: the player whose scoreboard kill counter increased right before this kill packet
 	scoreboardKiller string
+	// offset is the buffer offset of the listener that produced the event; -1 when inferred at round end
+	offset int
+	// derived is set when the event or its actor was inferred rather than read from a packet
+	derived bool
+}
+
+// addUpdate stamps u with the current buffer offset and appends it to the match feedback.
+// An offset already set (-1 for round-end inferences) is kept.
+func (r *Reader) addUpdate(u MatchUpdate) {
+	if u.offset == 0 {
+		u.offset = r.offset
+	}
+	r.MatchFeedback = append(r.MatchFeedback, u)
 }
 
 func (i MatchUpdateType) MarshalJSON() (text []byte, err error) {
@@ -136,7 +149,7 @@ func readMatchFeedback(r *Reader) error {
 					TimeInSeconds: r.time,
 				}
 				r.stamp(&u)
-				r.MatchFeedback = append(r.MatchFeedback, u)
+				r.addUpdate(u)
 				log.Debug().Interface("match_update", u).Send()
 				log.Debug().Msg("kill username empty because of death")
 			}
@@ -197,7 +210,7 @@ func readMatchFeedback(r *Reader) error {
 		}
 		u.scoreboardKiller = r.lastScoreboardKiller
 		r.lastScoreboardKiller = ""
-		r.MatchFeedback = append(r.MatchFeedback, u)
+		r.addUpdate(u)
 		log.Debug().Interface("match_update", u).Send()
 		return nil
 	}
@@ -233,7 +246,7 @@ func readMatchFeedback(r *Reader) error {
 		TimeInSeconds: r.time,
 		Message:       msg,
 	}
-	r.MatchFeedback = append(r.MatchFeedback, u)
+	r.addUpdate(u)
 	log.Debug().Interface("match_update", u).Send()
 	return nil
 }

@@ -1,0 +1,436 @@
+{
+	"header": {
+		"gameVersion": "Y11S3_Alpha04",
+		"codeVersion": 9950954,
+		"timestamp": "2026-10-18T21:21:00Z",
+		"matchType": {
+			"name": "CustomGameOnline",
+			"id": 4
+		},
+		"map": {
+			"name": "LairY10",
+			"id": 417890697769
+		},
+		"site": "2F Master Office, 2F R6 Room",
+		"recordingPlayerID": 7461518695322221803,
+		"recordingProfileID": "241f940a-bb22-4067-87c5-4e22de1fb015",
+		"additionalTags": "423855620",
+		"gamemode": {
+			"name": "Bomb",
+			"id": 327933806
+		},
+		"roundsPerMatch": 12,
+		"roundsPerMatchOvertime": 3,
+		"roundNumber": 3,
+		"overtimeRoundNumber": 0,
+		"teams": [
+			{
+				"name": "YOUR TEAM",
+				"startingScore": 2,
+				"score": 3,
+				"won": true,
+				"winCondition": "KilledOpponents",
+				"role": "Attack"
+			},
+			{
+				"name": "ENEMY TEAM",
+				"startingScore": 1,
+				"score": 1,
+				"won": false,
+				"role": "Defense"
+			}
+		],
+		"players": [
+			{
+				"id": 164337168716779884,
+				"profileID": "6df30dcb-da5c-42fe-a5b6-c7fc02182d8d",
+				"username": "Berry.LH",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Tubarao",
+					"id": 288200867549
+				},
+				"heroName": 399508304766,
+				"alliance": 4,
+				"roleImage": 288200867512,
+				"roleName": "TUBARÃO",
+				"rolePortrait": 288200867536,
+				"spawn": "2F Master Office, 2F R6 Room",
+				"loadout": {
+					"primary": 34160268747,
+					"secondary": 1366019484,
+					"gadget": 133651070294,
+					"ability": 288200867496
+				}
+			},
+			{
+				"id": 17624825199336540269,
+				"profileID": "c2289723-b2c2-4d54-94e4-893bd52541b8",
+				"username": "Zeria.67",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Azami",
+					"id": 378305069945
+				},
+				"heroName": 373332356036,
+				"alliance": 4,
+				"roleImage": 375628889901,
+				"roleName": "AZAMI",
+				"rolePortrait": 378305072064,
+				"spawn": "2F Master Office, 2F R6 Room",
+				"loadout": {
+					"primary": 1366019652,
+					"secondary": 34160268720,
+					"gadget": 133651070318,
+					"ability": 375628878643
+				}
+			},
+			{
+				"id": 4859617243008124430,
+				"profileID": "51ba2608-c5be-4210-a82f-966ecb537100",
+				"username": "Note.LV",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Thorn",
+					"id": 373711624351
+				},
+				"heroName": 360069612214,
+				"alliance": 4,
+				"roleImage": 371820933516,
+				"roleName": "THORN",
+				"rolePortrait": 288200867539,
+				"spawn": "2F Master Office, 2F R6 Room",
+				"loadout": {
+					"primary": 372271879863,
+					"secondary": 78526932169,
+					"gadget": 133651070258,
+					"ability": 371820933471
+				}
+			},
+			{
+				"id": 11323605999089979777,
+				"profileID": "4a42c3a3-a930-4c12-8a56-3fd60af304c1",
+				"username": "EvilFqrtMan",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Mute",
+					"id": 92270642318
+				},
+				"heroName": 423855857,
+				"alliance": 4,
+				"roleImage": 1494825830,
+				"roleName": "MUTE",
+				"rolePortrait": 27880706844,
+				"spawn": "2F Master Office, 2F R6 Room",
+				"loadout": {
+					"primary": 1366019508,
+					"secondary": 1366019400,
+					"gadget": 133651070294,
+					"ability": 133651069336
+				}
+			},
+			{
+				"id": 12154180466944049153,
+				"profileID": "68caa4a7-fc0e-4ccf-b22f-523d2b7c439a",
+				"username": "Spycey.LH",
+				"teamIndex": 1,
+				"operator": {
+					"name": "Ela",
+					"id": 92270644163
+				},
+				"heroName": 38576460310,
+				"alliance": 4,
+				"roleImage": 39149215589,
+				"roleName": "ELA",
+				"rolePortrait": 39149215613,
+				"spawn": "2F Master Office, 2F R6 Room",
+				"loadout": {
+					"primary": 68967567508,
+					"secondary": 68967567430,
+					"gadget": 133651070318,
+					"ability": 133651070252
+				}
+			},
+			{
+				"id": 16817989891608132895,
+				"profileID": "5503d991-e213-4d33-876e-98ac9ee51b71",
+				"username": "Mako.NKG",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Lion",
+					"id": 104189661861
+				},
+				"heroName": 42095194202,
+				"alliance": 3,
+				"roleImage": 104189661796,
+				"roleName": "LION",
+				"rolePortrait": 104189661822,
+				"spawn": "Dock",
+				"loadout": {
+					"primary": 1366019292,
+					"secondary": 1366019472,
+					"gadget": 133651070436,
+					"ability": 133651069312
+				}
+			},
+			{
+				"id": 5461404230027990656,
+				"profileID": "a0cf091b-d880-4d52-8915-ae4cd032d155",
+				"username": "scorpion.NKG",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Ace",
+					"id": 104189664390
+				},
+				"heroName": 255200030683,
+				"alliance": 3,
+				"roleImage": 104189664325,
+				"roleName": "ACE",
+				"rolePortrait": 104189664403,
+				"spawn": "Dock",
+				"loadout": {
+					"primary": 1366019220,
+					"secondary": 1366019472,
+					"gadget": 133651070288,
+					"ability": 201523838482
+				}
+			},
+			{
+				"id": 17299946831944130016,
+				"profileID": "4ec3044a-1569-455f-b80b-d25b9f130801",
+				"username": "FallacyAsTR.NKG",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Montagne",
+					"id": 92270644033
+				},
+				"heroName": 350237847,
+				"alliance": 3,
+				"roleImage": 1326495663,
+				"roleName": "MONTAGNE",
+				"rolePortrait": 27880706833,
+				"spawn": "Shooting Range",
+				"loadout": {
+					"primary": 133651069330,
+					"secondary": 1366019472,
+					"gadget": 133651070312
+				}
+			},
+			{
+				"id": 15382517788704268404,
+				"profileID": "4c85c133-eeed-4ed2-b713-b65d0f7e7b80",
+				"username": "Yoejinzera.NKG",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Gridlock",
+					"id": 174977508808
+				},
+				"heroName": 161356251753,
+				"alliance": 3,
+				"roleImage": 183220539159,
+				"roleName": "GRIDLOCK",
+				"rolePortrait": 174977498146,
+				"spawn": "Shooting Range",
+				"loadout": {
+					"primary": 168013421923,
+					"secondary": 139558931725,
+					"gadget": 133651070436,
+					"ability": 188410281800
+				}
+			},
+			{
+				"id": 6366317606386794496,
+				"profileID": "241f940a-bb22-4067-87c5-4e22de1fb015",
+				"username": "NickB2A",
+				"teamIndex": 0,
+				"operator": {
+					"name": "Ying",
+					"id": 92270642292
+				},
+				"alliance": 0,
+				"spawn": "Gate",
+				"loadout": {
+					"primary": 53995319846,
+					"secondary": 410903041523,
+					"gadget": 133651070312,
+					"ability": 133651069402
+				}
+			}
+		],
+		"gmSettings": [],
+		"matchID": "c0428af9-0bce-4a93-a5ca-8f7718781f44"
+	},
+	"matchFeedback": [
+		{
+			"type": {
+				"name": "OperatorSwap",
+				"id": 7
+			},
+			"username": "Mako.NKG",
+			"time": "0:42",
+			"timeInSeconds": 42,
+			"phase": "Prep",
+			"elapsedSeconds": -42,
+			"operator": {
+				"name": "Lion",
+				"id": 104189661861
+			}
+		},
+		{
+			"type": {
+				"name": "OperatorSwap",
+				"id": 7
+			},
+			"username": "Yoejinzera.NKG",
+			"time": "0:22",
+			"timeInSeconds": 22,
+			"phase": "Prep",
+			"elapsedSeconds": -22,
+			"operator": {
+				"name": "Gridlock",
+				"id": 174977508808
+			}
+		},
+		{
+			"type": {
+				"name": "OperatorSwap",
+				"id": 7
+			},
+			"username": "scorpion.NKG",
+			"time": "0:10",
+			"timeInSeconds": 10,
+			"phase": "Prep",
+			"elapsedSeconds": -10,
+			"operator": {
+				"name": "Ace",
+				"id": 104189664390
+			}
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Berry.LH",
+			"target": "Yoejinzera.NKG",
+			"headshot": true,
+			"time": "2:02",
+			"timeInSeconds": 122,
+			"phase": "Action",
+			"elapsedSeconds": 57
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "FallacyAsTR.NKG",
+			"target": "Berry.LH",
+			"headshot": false,
+			"time": "2:00",
+			"timeInSeconds": 120,
+			"phase": "Action",
+			"elapsedSeconds": 59
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "EvilFqrtMan",
+			"target": "NickB2A",
+			"headshot": true,
+			"time": "1:41",
+			"timeInSeconds": 101,
+			"phase": "Action",
+			"elapsedSeconds": 78
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Mako.NKG",
+			"target": "Spycey.LH",
+			"headshot": true,
+			"time": "1:24",
+			"timeInSeconds": 84,
+			"phase": "Action",
+			"elapsedSeconds": 95
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "FallacyAsTR.NKG",
+			"target": "EvilFqrtMan",
+			"headshot": false,
+			"time": "0:53",
+			"timeInSeconds": 53,
+			"phase": "Action",
+			"elapsedSeconds": 126
+		},
+		{
+			"type": {
+				"name": "DefuserPlantStart",
+				"id": 2
+			},
+			"username": "FallacyAsTR.NKG",
+			"time": "0:39",
+			"timeInSeconds": 39,
+			"phase": "Action",
+			"elapsedSeconds": 140
+		},
+		{
+			"type": {
+				"name": "DefuserPlantStop",
+				"id": 13
+			},
+			"username": "FallacyAsTR.NKG",
+			"time": "0:36",
+			"timeInSeconds": 36,
+			"phase": "Action",
+			"elapsedSeconds": 143
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Zeria.67",
+			"target": "FallacyAsTR.NKG",
+			"headshot": true,
+			"time": "0:36",
+			"timeInSeconds": 36,
+			"phase": "Action",
+			"elapsedSeconds": 143
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Mako.NKG",
+			"target": "Note.LV",
+			"headshot": true,
+			"time": "0:35",
+			"timeInSeconds": 35,
+			"phase": "Action",
+			"elapsedSeconds": 144
+		},
+		{
+			"type": {
+				"name": "Kill",
+				"id": 0
+			},
+			"username": "Mako.NKG",
+			"target": "Zeria.67",
+			"headshot": false,
+			"time": "0:32",
+			"timeInSeconds": 32,
+			"phase": "Action",
+			"elapsedSeconds": 147
+		}
+	]
+}

@@ -222,7 +222,7 @@ func readAtkOpSwap(r *Reader) error {
 				TimeInSeconds: r.time,
 				Operator:      o,
 			}
-			r.MatchFeedback = append(r.MatchFeedback, u)
+			r.addUpdate(u)
 			log.Debug().Interface("match_update", u).Send()
 		}
 		return nil
@@ -260,7 +260,7 @@ func (r *Reader) swapOperator(i int, o Operator) {
 		TimeInSeconds: r.time,
 		Operator:      o,
 	}
-	r.MatchFeedback = append(r.MatchFeedback, u)
+	r.addUpdate(u)
 	log.Debug().Interface("match_update", u).Send()
 }
 

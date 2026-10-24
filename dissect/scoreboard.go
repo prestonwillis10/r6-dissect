@@ -266,6 +266,7 @@ func readScoreboardScoreY10S4(r *Reader, score uint32) error {
 			}
 			if prevScore > 0 && delta == 100 && correctTeam {
 				r.MatchFeedback[r.pendingDefuserPlantIdx].Username = username
+				r.MatchFeedback[r.pendingDefuserPlantIdx].derived = true
 				r.lastDefuserPlayerIndex = idx
 				log.Debug().
 					Str("username", username).

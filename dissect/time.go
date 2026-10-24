@@ -292,7 +292,9 @@ func (r *Reader) roundEnd() {
 				Time:          r.timeRaw,
 				TimeInSeconds: r.time,
 			}
-			r.MatchFeedback = append(r.MatchFeedback, u)
+			u.offset = -1
+			u.derived = true
+			r.addUpdate(u)
 			log.Debug().Interface("match_update", u).Msg("inferred DefuserDisableComplete")
 			r.Header.Teams[winner].WinCondition = DisabledDefuser
 		case planted:
