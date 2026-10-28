@@ -68,7 +68,7 @@ func TestDetectPlayerMarkers(t *testing.T) {
 }
 
 // The tags are detected on the first call and kept for the round: later
-// players do not scan the round again, and an unknown round warns once.
+// players do not scan the round again.
 func TestReaderPlayerMarkers_Cached(t *testing.T) {
 	r := &Reader{b: testRound(testIDClassic, testUIClassic)}
 	r.Header.CodeVersion = 9950954
