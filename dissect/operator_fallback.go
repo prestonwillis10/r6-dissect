@@ -60,30 +60,30 @@ func (p Player) OperatorName() string {
 	return p.Operator.String()
 }
 
-// MarshalJSON overrides only the operator key; the embedded alias keeps every other field.
+// MarshalJSON overrides only the operator key, and only for a renamed operator; any other player
+// marshals exactly as the plain struct does.
 func (p Player) MarshalJSON() ([]byte, error) {
 	type plain Player
+	name := p.OperatorName()
+	if name == p.Operator.String() {
+		return json.Marshal(plain(p))
+	}
 	return json.Marshal(struct {
 		plain
 		Operator stringerIntMarshal `json:"operator"`
-	}{plain(p), stringerIntMarshal{Name: p.OperatorName(), ID: int(p.Operator)}})
+	}{plain(p), stringerIntMarshal{Name: name, ID: int(p.Operator)}})
 }
 
 // MarshalJSON prints a swap to an operator newer than the operator table with the name derived from the header.
 func (u MatchUpdate) MarshalJSON() ([]byte, error) {
 	type plain MatchUpdate
-	var op *stringerIntMarshal
-	if u.Operator != 0 {
-		name := u.operatorName
-		if name == "" {
-			name = u.Operator.String()
-		}
-		op = &stringerIntMarshal{Name: name, ID: int(u.Operator)}
+	if u.Operator == 0 || u.operatorName == "" {
+		return json.Marshal(plain(u))
 	}
 	return json.Marshal(struct {
 		plain
-		Operator *stringerIntMarshal `json:"operator,omitempty"`
-	}{plain(u), op})
+		Operator stringerIntMarshal `json:"operator"`
+	}{plain(u), stringerIntMarshal{Name: u.operatorName, ID: int(u.Operator)}})
 }
 
 // nameUnknownSwapOperators names an OperatorSwap to an unknown operator ID when it is that player's
