@@ -5,7 +5,7 @@ Wave-ship lane that implements the 2026-10-21 fork-survey issues. Repo `prestonw
 - **Track:** `track/fork-ports`, cut from `origin/main` at `1437695`. The plans branch `docs/fork-port-plans` (PR #36) is merged in, so the spec is on the track (`1352567`).
 - **Spec:** `docs/research/2026-10-21-fork-survey.md` (the index) and `docs/superpowers/plans/2026-10-21-fork-port-NN-*.md`, with prototypes in `docs/research/fork-port-prototypes/`.
 - **Companion lane:** R6Stats `track/fork-ports`, run log `docs/runs/2026-10-22-fork-ports.md` in that repo (R6Stats #15–#18).
-- **Mode:** autonomous slot merges into the track. The landing PR (track → `main`) is gated on the operator's go, as with the rec-timeline and ci-linux landings.
+- **Mode:** autonomous slot merges into the track. The landing PR (track → `main`) is gated on the operator's go, as with the rec-timeline and ci-linux landings. The operator gave that go on 2026-10-22: run `/deduce-pr` on the landing PR until a merge verdict, then merge (re-sync with `main` first).
 - **Models:** Sonnet implementers (Opus for #26 and #33, which need judgment beyond the plan). Opus reviewers via `/deduce-pr`, named `rev-<PR#>`.
 
 ## Gate zero (2026-10-22)
@@ -62,6 +62,28 @@ The graph follows the shared files. `dissect/reader.go` is the hotspot, edited b
 | W5 | S35 | #35 | 11 (Part B, 11c) | the reconcile pass order in `reconcileKillsFromScoreboard`; credits closed PR #12's sort and its `break` note | S26 |
 | W4 | S28 | #28 | 11 (Part A) | `MatchUpdate` weapon fields (`feedback.go`), `classifyKillWeapons` at the end of `Read` | S31 |
 
+### Results (all slot PRs merged into the track; verdict history in the event log)
+
+| Slot | Issue(s) | PR | Merge commit |
+|---|---|---|---|
+| S17 | #17 | #37 | `60f6616` |
+| S23 | #23, #24 | #38 | `05cf447` |
+| S29 | #29 | #39 | `b81ade4` |
+| S32 | #32 | #40 | `74de332` |
+| S30 | #30 | #42 | `da2264b` |
+| S19 | #19 | #43 | `9af84a4` |
+| S34 | #34 | #44 | `43a747a` |
+| S33 | #33 | #45 | `999e2af` |
+| S18 | #18 | #46 | `7e976ae` |
+| S27 | #27 | #47 | `f30b152` |
+| S25 | #25 | #48 | `8bd9741` |
+| S31 | #31 | #49 | `5eab788` |
+| S26 | #26 | #50 | `95cdcab` |
+| S28 | #28 | #51 | `6491fa7` |
+| S35 | #35 | #52 | `e98eb5e` |
+
+Deferred: #21, #22 (need PR #10 on `main`). PR #3 merged to `main` (`7d37745`) and into the track (`24024f6`).
+
 ## Worktree ledger
 
 worktree: /home/prest/r6-dissect-worktrees/fork-ports branch=track/fork-ports for=orchestrator
@@ -92,6 +114,19 @@ worktree: /home/prest/r6-dissect-worktrees/fp-s31 branch=fp/s31-listener-eof for
 worktree: /home/prest/r6-dissect-worktrees/fp-s18 branch=fp/s18-late-joiner for=S18
 worktree: /home/prest/r6-dissect-worktrees/fp-s25 branch=fp/s25-damage-taken for=S25
 worktree: /home/prest/r6-dissect-worktrees/fp-s27 branch=fp/s27-operator-fallback for=S27
+worktree: /home/prest/r6-dissect-worktrees/rev-46 branch=(detached 00383f6) for=rev-46
+worktree: /home/prest/r6-dissect-worktrees/rev-47 branch=(detached 015fb76) for=rev-47
+worktree: /home/prest/r6-dissect-worktrees/rev-48 branch=(detached 8e883c8) for=rev-48
+worktree: /home/prest/r6-dissect-worktrees/rev-47-r2 branch=(detached 3beca42) for=rev-47 round 2
+worktree: /home/prest/r6-dissect-worktrees/fp-s26 branch=fp/s26-scoreboard-link for=S26
+worktree: /home/prest/r6-dissect-worktrees/rev-49 branch=(detached ce8c0bd) for=rev-49
+worktree: /home/prest/r6-dissect-worktrees/rev-50 branch=(detached 81debed) for=rev-50
+worktree: /home/prest/r6-dissect-worktrees/fp-s28 branch=fp/s28-weapon-per-kill for=S28
+worktree: /home/prest/r6-dissect-worktrees/fp-s35 branch=fp/s35-reconcile-order for=S35
+worktree: /home/prest/r6-dissect-worktrees/rev-49-r2 branch=(detached 3724f63) for=rev-49 round 2
+worktree: /home/prest/r6-dissect-worktrees/rev-51 branch=(detached a47e4e6) for=rev-51
+worktree: /home/prest/r6-dissect-worktrees/rev-51-r2 branch=(detached c802a5d) for=rev-51 round 2
+worktree: /home/prest/r6-dissect-worktrees/rev-52 branch=(detached 9618bb6) for=rev-52
 
 ## Event log
 
@@ -131,9 +166,44 @@ worktree: /home/prest/r6-dissect-worktrees/fp-s27 branch=fp/s27-operator-fallbac
 - 2026-10-28 W2 merges, each after `lane/val.sh` on the current track: #44 (`43a747a`, race `dissect/test 65.064s`), #43 (`9af84a4`, `61.850s`), #45 (`999e2af`, `44.347s` — the new scanner). Corpus expected failures unchanged throughout. **Wave 2 complete: #42, #43, #44, #45.**
 - 2026-10-28 reconciliation (`ef23785`): the 21916 `score-drop` entry relabelled from #19 to candidate 6 (snapshot rows dropped), with a comment.
 - 2026-10-28 W3 dispatched from `fe94907`: S31 (#31, Opus; Task 3 superseded by #45, Task 5 out of scope), S18 (#18), S25 (#25; Task 5 research out of scope), S27 (#27).
+- 2026-10-28 S18 → PR #46 (`00383f6`), S27 → PR #47 (`015fb76`; preflight citation FAILs fixed: `dissect/` prefixes, two anchors), S25 → PR #48 (`8e883c8`; its slot log named league players → pseudonymised). Privacy sweep: run log + s19 slot log + PR #43 body named fork-corpus players → pseudonymised (`03ff06c`); brief gained a privacy rule. rev-46/47/48 dispatched.
+- 2026-10-28 rev-46 MERGE-WITH-NITS (3 ADVISORY): F1 stale index-keyed state after a non-last drop (pre-existing; root `readPlayerOrder`) and F2 the untested outer `idx < len(Header.Players)` guard → carried into S26's (#26) prompt as acceptance cases; F3 optional (row ID) skipped. Validating on `03ff06c`.
+- 2026-10-28 #46 validated on `03ff06c` (race `dissect/test 48.280s`, corpus unchanged) → merged (`7e976ae`).
+- 2026-10-28 rev-47 round 1 MERGE-AFTER-MECHANICAL (F1: the operator key moved for every object — a fast path keeps default bytes unless renamed) → applied by the orchestrator `11c9e5c` (+ test; mutant red; RAW-IDENTICAL on the user's matches vs `fe94907`) and `3beca42` slot log; body rewritten; strict preflight 0 FAIL; round 2 charged.
+- 2026-10-28 rev-48 round 1 MERGE-AFTER-MECHANICAL: F1 (merge-gating) pushed commit `f717f1f` carries league usernames in the s25 slot log's history — merge commits would carry it into the track; F2 the pseudonym sweep mangled a parenthetical; F3–F6 ADVISORY (empty-role fallback, README caveat, match total undercount, pseudonym-key exposure) → candidates. F2 fixed and the two slot-log commits squashed locally (`307ff04`; history greps 0/0; code diff vs `8e883c8` empty). **The force-push (`--force-with-lease=…:8e883c8`) was DENIED by the auto-mode classifier [Git Destructive]**; not worked around. #48 HELD pending the operator: allow the force-push, squash-merge this one PR, or merge as is.
+- 2026-10-28 W4 part 1 dispatched: S26 (#26, Opus) from `7e976ae`, carrying rev-46 F1/F2 as acceptance cases; third-party fixture replaced by a synthetic test + local corpus check.
+- 2026-10-28 operator: "PR #48 merge approved" → merged as is (no force-push; `f717f1f` stays in history by the operator's call). F2 carried as a fast-forward commit `e1b490c` (check `0`; code diff vs `8e883c8` empty); validated on `7e976ae` (race `dissect/test 72.925s`) → #48 merged (`8bd9741`).
+- 2026-10-28 rev-47 round 2 MERGE at `3beca42` (F1 fixed: raw-identical on the user's matches and 11 fixtures; F5 advisory latent op-0 swap guard). Validating on the track with #48.
+- 2026-10-28 #47 validated on `8bd9741` (race `dissect/test 87.578s`, corpus unchanged) → merged.
+- 2026-10-28 S31 → PR #49 (`ce8c0bd`; preflight 0 FAIL, 3 claim WARNs left for round 1). 27 mutants reported; candidate C1 in its body (default log level hides the Warn line).
+- 2026-10-28 #49 validated on `f30b152` (race `dissect/test 79.031s`, `exports 3.772s`; no `.rec.json` churn, only the PR's own test files staged; corpus `knownMatchFailures` unchanged). Awaiting rev-49.
+- 2026-10-28 S26 → PR #50 (`81debed`; preflight citation FAIL — two lines under one anchor — fixed in the body, 0 FAIL). Removes both 47572 `knownMatchFailures` entries (score-drop and the flaky nondeterminism). Candidate: health/defuser indices not moved on a `deriveTeamRoles` drop.
+- 2026-10-28 rev-49 round 1 NEEDS-CHANGES: F1 BLOCKING (a failed `readPlayer` now keeps the round, `deriveTeamRoles` drops the Operator-0 entry, and index-keyed state is not remapped → 9 of 9 other players carry another's stats; CLASS of 9 sites in `reader.go`); F2 MECHANICAL (no test that EVERY round carries its own warning); F3–F5 ADVISORY (default-level stderr silence = author's C1; per-tick `readY7Time` warnings on pre-Y8S1; `readAtkOpSwap` keeps a swap and also warns). Sequencing: the remap is #50's mechanism (S26 remaps 6 of 9), so #50 owns it — rev-50 told to judge the 3 unmoved sites; #49 merges the track after #50 and adds rev-49's F1/F2 tests.
+- 2026-10-28 W4 part 2 dispatched: S28 (#28, Opus) from `f30b152` — not waiting on #49 (the coupling is one call at the tail of `Read`; the orchestrator resolves it at merge); rev-47's single-`MarshalJSON` note carried.
+- 2026-10-28 rev-50 round 1 MERGE-WITH-NITS (4 ADVISORY): F1 the 3 unmoved sites (`healthState`, `healthTransitions[].player`, `defuserRun.playerIndex`) are empty at `deriveTeamRoles` on 99 rounds → no reachable wrong output (author's candidate; its "#48 (open)" was stale); F2 zip-vs-link chosen per call, not per round (unreachable: first link precedes the first player packet on 88 of 88 Y10S4+ rounds); F3/F4 body prose. Nits applied by the orchestrator: slot log `7695269`, body (stale #48, the ownerless-link form, local numbering note; three `--strict-claims` count shapes rephrased) → preflight 0 FAIL. Validating on `f30b152`.
+- 2026-10-28 rev-50 re-judge with #49 in (track+#49+#50 `112201b`): F1 stays ADVISORY — rev-49's injection over 88 Y10S4+ rounds gives a mid-list drop in 52 and stale state at `deriveTeamRoles` in 0; #50's 6-site remap takes other-player stat mismatches from 52 rounds (without #50) to 1. New F5 ADVISORY (owner #49 / S35): a lost player record still changes others' output through name-based fallbacks — `reconcileKillsFromScoreboard` skips a kill whose target is unknown (14012 R02: player90 kills 1 want 0, player74 1 want 2) and `startDefuserRun`'s `lastAliveDefuserPlayer` fallback credits the plant to another player (32000 R02). Carried into rev-49's delta round. Verdict unchanged.
+- 2026-10-28 #50 validated on `f30b152` + nit head `7695269` (race `dissect/test 405.647s` under load; corpus: only the 21916 candidate-6 entry left, green) → merged.
+- 2026-10-28 W5 dispatched: S35 (#35, Opus) from `95cdcab`; folds in closed PR #12's sort + determinism test (expectation corrected to `U1>E1 U2>E2`), crediting @ElyasYassin; `targetIdx < 0` skip (rev-50 F5) left to #49's delta round.
+- 2026-10-28 #49 fix round by the orchestrator (Opus): track merged in (`521459a`, brings #50's remap) + rev-49's F1/F2 tests (`3724f63`); F1 test green with #50, red with `movePlayerIndices` removed; F2 red under first-round-only warnings. Body: round-2 bullets + mutation output; 5 citations re-pointed after the merge, 2 exit-result claims rephrased → preflight `--strict-claims` 0 FAIL. Delta round to rev-49 with rev-50 F5 as context; validating.
+- 2026-10-28 #49 `3724f63` validated on `95cdcab` (race `dissect/test 280.459s`, `exports 8.476s`; no `.rec.json` churn; corpus: only the 21916 candidate-6 entry). Awaiting rev-49 round 2.
+- 2026-10-28 S28 → PR #51 (`a47e4e6`; preflight FAILs fixed in the body: 10 citations without `dissect/`, then 5 anchors re-pointed to the cited line's code → 0 FAIL). Goldens: 11 files, 78 kills (66 primary / 7 secondary / 5 gadget); corpus + user matches 539 kills, 539 `weaponID`, 536 `weaponSlot`.
+- 2026-10-28 rev-49 round 2 MERGE-AFTER-MECHANICAL NO-RE-REVIEW: F1 FIXED (by #50's remap via the merge; `movePlayerIndices` removed → red), F2 FIXED, F3–F5 ADVISORY unchanged; F7 MECHANICAL FIX-INTRODUCED (the new test's comment overclaims); F6 = rev-50's F5, ADVISORY PRE-EXISTING-AT-ROUND-1 (events whose subject is the lost player fall back; no unrelated player's data changes: 0 rounds). Applied F7 in `19f421f`; NO-RE-REVIEW check — expected `0`, actual:
+  ```
+  grep-actual: 0  expected: 0
+  ```
+  Match → merged #49 with no resume (track unchanged at `95cdcab` since the `3724f63` validation; the delta is a test comment).
+- 2026-10-28 #51 validated on `95cdcab` (race `dissect/test 244.807s`; 11 goldens staged from the PR; corpus unchanged) — stale after #49 merged (`5eab788`); re-validating on `5eab788`.
+- 2026-10-28 #51 re-validated on `5eab788` (with #49; auto-merge of `reader.go` clean; race `dissect/test 210.736s`, `exports 7.797s`; corpus unchanged). rev-51 round 1 MERGE-AFTER-MECHANICAL: F1 MECHANICAL CLASS (README feedback table has no rows for `weaponID`/`weaponSlot`), F2 ADVISORY (unit test ID below 2^32: a 4-byte read survives). Applied by the orchestrator: `3df1e3b` README rows, `c802a5d` ID 395972905309 (4-byte mutant red); greps `2` / `1` as expected; body round-2 section → preflight `--strict-claims` 0 FAIL. Delta round to rev-51.
+- 2026-10-28 rev-51 round 2 MERGE at `c802a5d` (F1/F2 FIXED, no FIX-INTRODUCED; README claims checked against the code). Track unchanged at `5eab788` since the validation; the delta is README + one test literal → merged #51.
+- 2026-10-28 S35 → PR #52 (`9618bb6`; preflight citation FAIL — two lines under one anchor — fixed in the body → 0 FAIL). No output change on the real replays (over/under counts per round are 0/0 or 1/1 everywhere after #50); PR #12's sort folded in, credited to @ElyasYassin.
+- 2026-10-28 #52 validated on `6491fa7` (race `dissect/test 87.907s`, `exports 3.912s`; no golden churn; corpus unchanged). Awaiting rev-52.
+- 2026-10-28 rev-52 round 1 MERGE at `9618bb6` (F1 ADVISORY pre-existing: the zip path at `dissect/scoreboard.go` maps two sbIDs to one player when `readPlayerOrder` repeats one, so `expectedKills` depends on map order; not observed, 0 of 88 rounds). Second guard site and the M03d/M04a–c equivalence proved by a 200000-round differential; 3-over/3-under pass-order case correct at head. → merged #52. All slot PRs merged.
 
 ## Findings
 
+finding: PR=48 round=1 tier=MECHANICAL origin=EVIDENCE kind=other author-catchable=yes (league names in a pushed commit's history)
+finding: PR=47 round=1 tier=MECHANICAL origin=IN-DIFF kind=other author-catchable=yes (unnecessary JSON key move)
+finding: PR=46 round=1 tier=ADVISORY origin=PRE-EXISTING kind=other author-catchable=no (stale index-keyed state; routed to #26)
 finding: PR=42 round=1 tier=ADVISORY origin=EVIDENCE kind=other author-catchable=no
 finding: PR=43 round=1 tier=ADVISORY origin=IN-DIFF kind=prose author-catchable=yes (README scope)
 finding: PR=44 round=1 tier=ADVISORY origin=EVIDENCE kind=prose author-catchable=yes (stale cite)
@@ -150,6 +220,21 @@ finding: PR=38 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=
 finding: PR=38 round=1 tier=ADVISORY origin=PRE-EXISTING kind=other author-catchable=no
 finding: PR=38 round=1 tier=ADVISORY origin=EVIDENCE kind=other author-catchable=no
 finding: PR=38 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=yes
+finding: PR=49 round=1 tier=BLOCKING origin=PRE-EXISTING kind=sibling author-catchable=yes
+finding: PR=49 round=1 tier=MECHANICAL origin=IN-DIFF kind=vacuous-test author-catchable=yes
+finding: PR=49 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=yes
+finding: PR=49 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=no
+finding: PR=49 round=1 tier=ADVISORY origin=PRE-EXISTING kind=other author-catchable=no
+finding: PR=50 round=1 tier=ADVISORY origin=PRE-EXISTING kind=sibling author-catchable=yes
+finding: PR=50 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=no
+finding: PR=50 round=1 tier=ADVISORY origin=EVIDENCE kind=prose author-catchable=yes
+finding: PR=50 round=1 tier=ADVISORY origin=EVIDENCE kind=prose author-catchable=yes
+finding: PR=50 round=1 tier=ADVISORY origin=EVIDENCE kind=sibling author-catchable=no
+finding: PR=49 round=2 tier=MECHANICAL origin=FIX-INTRODUCED kind=false-claim author-catchable=yes
+finding: PR=49 round=2 tier=ADVISORY origin=PRE-EXISTING kind=sibling author-catchable=no
+finding: PR=51 round=1 tier=MECHANICAL origin=IN-DIFF kind=prose author-catchable=yes
+finding: PR=51 round=1 tier=ADVISORY origin=IN-DIFF kind=vacuous-test author-catchable=yes
+finding: PR=52 round=1 tier=ADVISORY origin=PRE-EXISTING kind=other author-catchable=no
 
 ## Candidates
 
@@ -162,4 +247,33 @@ finding: PR=38 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=
 
 6. **scoreboard: the Y10S4+ score reader drops round-start snapshot rows (marker byte `0xa3`)** — from PR #43 rev-43 F3. In nicktstewart match3 R05 (21916), player38's 930 appears once, in the round-start snapshot at offset 20630 with byte −18 = `0xa3`; `scoreboardEntryHasMarker` requires `0x23`, so it is dropped and the player's cumulative score reads 930 → 0 in a round with no score change. Not owned by #17–#35 (#26 scopes snapshot detection out). The corpus entry `knownMatchFailures["nick-Match-2026-03-08_19-55-32-21916"]` `score-drop` is mislabelled `#19`; relabel to this candidate at reconciliation. Acceptance: the corpus test's 21916 folder passes the score-drop invariant. Verified-against: 6b3617d.
 
+7. **damage taken: an empty team role applies the defender rule to attackers (stale snapshot counted)** — PR #48 rev-48 F3. Roles are set only when `playersRead == 10`; `health.go` treats "" as not-attacker. Blanking roles on custom_solid_snake moves an attacker row 100 → 210. Acceptance: with empty roles, attacker rows keep the attacker rule (`Role != Defense` fallback, or roles derived another way). Verified-against: 8e883c8.
+8. **damage taken: README states the value as measured with no caveat for unvalidated heal sources (Doc, Thunderbird, Skopos swaps, disconnects), and the match total silently omits rounds with no health records** — PR #48 rev-48 F4/F5. Acceptance: README caveat, and a match row that marks partial coverage. Verified-against: 8e883c8.
+
+9. **CLI: a round with `warnings` leaves no stderr line at the default log level** — PR #49 author C1 / rev-49 F3. Observed on a crafted match folder: track `match rc=0 stderr_lines=1` (`round skipped`), head `match rc=0 stderr_lines=0` with `round1_warnings=1`. `main.go` `zerolog.SetGlobalLevel(zerolog.ErrorLevel)`; `dissect/warning.go` `log.Warn().Str("listener", name)`. Acceptance: at the default level the CLI prints one line per round carrying `warnings`, or the desk closes this (the JSON key is the channel). Verified-against: 3724f63.
+10. **warnings: pre-Y8S1 `readY7Time` parse errors embed the parsed text, so a broken clock gives one warning per tick** — rev-49 F4. Probe: `ticks=50 warnings=50`, first `Error:strconv.ParseFloat: parsing "x00": invalid syntax`. The merge key in `dissect/warning.go` `if w.Listener == name && w.Pattern == pattern && w.Error == msg {` includes the text. Acceptance: 50 failing ticks give one merged warning with `count` 50. Verified-against: 3724f63.
+11. **a lost player record lets events about that player fall back to another attribution** — rev-50 F5 / rev-49 F6. With a `readPlayer` warning: `dissect/scoreboard.go` `if targetIdx < 0 {` skips the scoreboard correction (14012 R02: the lost player's death credited to the feed killer, 2 players' kills off by one), and `dissect/defuse.go` `playerIndex = r.lastAliveDefuserPlayer(plant)` credits the lost planter's plant to another player (32000 R02). Also the `ReadWarning` doc and README "Round warnings" say only that data "may be missing" (`dissect/warning.go` and `README.md`, the phrase `may be missing`). Acceptance: on a round with a `readPlayer` warning, such events stay unattributed (or the docs name the fallback). Verified-against: 3724f63.
+12. **readAtkOpSwap records a swap and then returns Skip's EOF** — rev-49 F5 (pre-existing). `dissect/player.go` `r.swapOperator(objectIndex, o)` then `return err`; under #49 the swap is kept and a warning is also recorded for a packet whose data was used. Acceptance: a swap packet ending at the buffer end yields the swap and no warning. Verified-against: 3724f63.
+13. **health/defuse index state is not moved by `movePlayerIndices`** — PR #50 author candidate / rev-50 F1. `healthState`, `healthTransitions[].player`, `defuserRun.playerIndex` (`dissect/defuse.go` `playerIndex int`) are empty at `deriveTeamRoles` on 88 of 88 Y10S4+ rounds, including with #49's failure injected; a synthetic test can reach them. Acceptance: a unit test records a health transition and starts a defuser run before a non-last drop; DBNO, Revive and defuser events name the right player. Verified-against: 81debed.
+14. **scoreboard mapping: zip-vs-link chosen per call, not per round** — rev-50 F2. `dissect/scoreboard.go` checks the links read so far; a mapping call after a player packet but before the first link token would zip and cache. Not observed (first link precedes the first player packet on 88 of 88 Y10S4+ rounds). Acceptance: a synthetic round with a scoreboard packet before the first link maps by link once links arrive. Verified-against: 81debed.
+15. **reader: `Bytes(n)` reports `io.EOF` for a read that ends exactly on the last byte of `r.b`** — PR #45 candidate. `(&Reader{b: []byte{1, 2, 3, 4}}).Bytes(4)` returns `[], EOF`; `dissect/reader.go` `Skip` does `r.offset += n` then `if r.offset >= len(r.b) {`. Acceptance: that call returns the four bytes and `nil`, goldens unchanged or each change justified. Verified-against: 7d37745.
+16. **player: a late joiner is always put on team 1** — PR #46 candidate (plan 08 Risks "08b"). `dissect/player.go` `playersRead > 5` in `readPlayer`. Acceptance: a late joiner on team 0 gets `teamIndex` 0. Verified-against: 00383f6.
+17. **export: the XLSX export has no `damageTaken` column** — PR #48 candidate; the JSON has it (`dissect/match.go`). Acceptance: the match XLSX carries the column. Verified-against: 8e883c8.
+18. **scoreboard: the zip fallback can map two scoreboard IDs to one player** — rev-52 F1. `dissect/scoreboard.go` zip loop (the one unguarded writer of `r.scoreboardIDToPlayer[...] =`, no `!mappedPlayers[idx]` check) when `readPlayerOrder` repeats a player; reconcile's `expectedKills` then depends on map order (constructed: `map[A>E :46 B>E :354]` over 400 runs). Not observed (`manyToOne=0` in 88 reconciled rounds; the zip path never ran). Acceptance: the constructed state gives one outcome over 400 runs. Verified-against: 9618bb6.
+19. **R6Stats: ingest the new parser keys** — PR #48 / #51 / #49 follow-ups. `damageTaken` (`_stats_row`), `weaponID`/`weaponSlot` (`RoundEvent` columns + migration), round `warnings` (with candidate 2's `skippedRounds`) as upload warnings. Needs a vendor bump. Acceptance: an ingest test per key. Verified-against: R6Stats c350dee / r6-dissect 9618bb6.
+
 ## Observations
+
+Unreproduced or not acted on; never filed.
+
+1. **Map IDs unconfirmed** (PR #37): the four new map IDs are unconfirmed by any replay (plan Risks), and the unknown-map warning in `readHeader` is exercised only by a mutant.
+2. **Silent partial rounds** (PR #38): a cut exactly at a zstd frame boundary is still undetected (plan Risks).
+3. **`ReadPartial` range unpinned** (PR #45): with `end /= 3` removed under `readPartial`, `TestReader_ReadPartial` stays green; the line predates the lane.
+4. **PR #10 carry** (PR #49): when `track/rec-timeline` lands, drop its `settleTimelineOnStop` and `return` from the listener loop (`Read` no longer has a named error result), keep `buildTimeline` in the end-of-round block, add `Warnings` after `TimelineError` in `dissect/match.go` `round` and `main.go` `writeRound`, replace the README sentence about `round read stopped`, and add the plan's `TestTimeline_ListenerFailureStillBuildsTimeline`.
+5. **Pre-Y10S4 drops** (PR #50): Y8S1 `quick_1` and Y8S2 `attacker_recorder_site_test` remove a non-last header-only player in `deriveTeamRoles`; the pre-Y10S4 scoreboard path resolves dissect IDs, so no golden changed.
+6. **`+4` mapping kept across calls** (PR #50): a `+4` mapping made before a linked sbID's owner is read would keep that player; not seen.
+7. **Weapon gaps** (PR #51): `ReadPartial` does not run `applyLoadouts`, so a partial read's Kill has `weaponID` but no `weaponSlot`; asset `70077334926` (2 kills) is in no loadout, probably melee, unclassified.
+8. **Fallback moves are a guess** (PR #52): a pass-1 reconcile move is a guess by construction; the determinism test pins the player-index order, not ground truth.
+9. **Operator-0 header players** (PR #47): out of scope (plan Risks).
+10. **govulncheck** fails locally on the go1.27.2 stdlib (GO-2026-6809, fixed in go1.27.3): toolchain, not repo code; reported by every slot.
+11. **Memory**: `-race` on `./dissect/test` peaks near 15–16 GB; two parallel runs swapped the host (27/31 GB). Lane rule since: agents never run it; the orchestrator runs it `-parallel=1`, one at a time, under `memguard.sh`.
