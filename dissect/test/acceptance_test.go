@@ -29,6 +29,9 @@ func TestAcceptance_Replays(t *testing.T) {
 			name := filepath.Base(file)
 			rounds++
 			checkRound(t, name, r)
+			if len(r.Warnings) > 0 {
+				t.Errorf("%s: a listener failed: %+v", name, r.Warnings)
+			}
 			rows, total := checkDamageTaken(t, name, r)
 			damageRows += rows
 			damage += total

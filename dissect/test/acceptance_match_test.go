@@ -20,6 +20,7 @@ const (
 	kindScoreDrop = "score-drop"     // a player's cumulative score went down between rounds
 	kindNondet    = "nondeterminism" // two reads of the same match differ
 	kindNoScores  = "no-scores"      // every round's scores are 0, so the score check had nothing to compare
+	kindWarnings  = "warnings"       // a round carries warnings: a listener failed on that replay
 )
 
 // knownFailure is a corpus folder that fails an invariant today because of a bug another issue owns.
@@ -187,6 +188,9 @@ func checkMatchJSON(b []byte) []finding {
 				found = append(found, finding{kindNotArray, fmt.Sprintf("round %d: %q is %s, want a JSON array", i, key, v)})
 			}
 		}
+		if v := strings.TrimSpace(string(r["warnings"])); v != "" && v != "null" && v != "[]" {
+			found = append(found, finding{kindWarnings, fmt.Sprintf("round %d: warnings %s", i, v)})
+		}
 		var stats []struct {
 			Username string `json:"username"`
 			Score    int    `json:"score"`
@@ -215,4 +219,26 @@ func checkMatchJSON(b []byte) []finding {
 		found = append(found, finding{kindNoScores, fmt.Sprintf("none of %d rounds has a non-zero score", len(out.Rounds))})
 	}
 	return found
+}
+
+// A round with warnings is a finding: since #31 a failing listener no longer fails the read, so
+// the warnings key is the only sign of it.
+func TestCheckMatchJSON_Warnings(t *testing.T) {
+	b := []byte(`{"rounds":[{"matchFeedback":[],"stats":[{"username":"a","score":10}],` +
+		`"warnings":[{"listener":"readTime","error":"EOF","count":1}]}]}`)
+	var got []finding
+	for _, f := range checkMatchJSON(b) {
+		if f.kind == kindWarnings {
+			got = append(got, f)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("warnings findings = %+v, want exactly one", got)
+	}
+	clean := []byte(`{"rounds":[{"matchFeedback":[],"stats":[{"username":"a","score":10}]}]}`)
+	for _, f := range checkMatchJSON(clean) {
+		if f.kind == kindWarnings {
+			t.Fatalf("clean round gave a warnings finding: %+v", f)
+		}
+	}
 }
