@@ -2,6 +2,7 @@ package dissect
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -43,6 +44,12 @@ type MatchUpdate struct {
 	Message        string          `json:"message,omitempty"`
 	Operator       Operator        `json:"operator,omitempty"`
 	TeamKill       bool            `json:"teamKill,omitempty"`
+	// Kill: the asset ID of the item that dealt the finishing blow, read from the kill packet. It
+	// uses the same IDs as Loadout, and may be another player's item (e.g. a deployed gadget).
+	WeaponID uint64 `json:"weaponID,omitempty"`
+	// Kill: the slot that holds WeaponID in the loadout of the player the kill packet names, ""
+	// for an item outside that loadout
+	WeaponSlot WeaponSlot `json:"weaponSlot,omitempty"`
 	// Y10S4+: the player whose scoreboard kill counter increased right before this kill packet
 	scoreboardKiller string
 	// Y10S4+: for a DBNO read from the health state, the index+1 of its transition in
@@ -50,6 +57,9 @@ type MatchUpdate struct {
 	healthTransition int
 	// names an Operator id newer than the operator table, from the header roleName
 	operatorName string
+	// Kill: the killer the kill packet names (the finisher), kept when the kill is credited to
+	// another player (Y10S4+ scoreboard reconciliation credits the downer)
+	feedKiller string
 }
 
 func (i MatchUpdateType) MarshalJSON() (text []byte, err error) {
@@ -70,6 +80,22 @@ func (i *MatchUpdateType) UnmarshalJSON(data []byte) (err error) {
 
 var activity2 = []byte{0x00, 0x00, 0x00, 0x22, 0xe3, 0x09, 0x00, 0x79}
 var killIndicator = []byte{0x22, 0xd9, 0x13, 0x3c, 0xba}
+
+// killWeaponField is the tag and size byte of the field right after a kill packet's headshot
+// byte; the value is the weapon's asset ID as a uint64 (little-endian). Verified on Y8S1, Y8S2,
+// Y9S1, Y11S1, Y11S2 and Y11S3.
+var killWeaponField = []byte{0x22, 0xF8, 0x6C, 0xDD, 0x65, 0x08}
+
+// peekKillWeapon returns the weapon asset ID of the kill packet field at r.offset, or 0 if the
+// field is not there or does not fit in the buffer. It never moves r.offset and never fails, so
+// an unknown packet layout cannot abort the round.
+func peekKillWeapon(r *Reader) uint64 {
+	value := r.offset + len(killWeaponField)
+	if value+8 > len(r.b) || !bytes.Equal(r.b[r.offset:value], killWeaponField) {
+		return 0
+	}
+	return binary.LittleEndian.Uint64(r.b[value : value+8])
+}
 
 func readMatchFeedback(r *Reader) error {
 	if r.Header.CodeVersion >= Y9S1Update3 {
@@ -166,6 +192,11 @@ func readMatchFeedback(r *Reader) error {
 			*headshotPtr = true
 		}
 		u.Headshot = headshotPtr
+		u.WeaponID = peekKillWeapon(r)
+		u.feedKiller = username
+		if u.WeaponID == 0 {
+			log.Debug().Str("killer", username).Msg("kill weapon field not found")
+		}
 		log.Debug().
 			Str("killer", username).
 			Str("target", target).
