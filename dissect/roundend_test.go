@@ -160,3 +160,63 @@ func TestRoundDecided(t *testing.T) {
 		t.Fatal("team 1 won: want true")
 	}
 }
+
+// the disable branch of a round without a result must not set a condition, whichever role team 0 has.
+func TestRoundEnd_UndecidedDisableIgnoredForDefenseTeam0(t *testing.T) {
+	r := &Reader{Header: Header{CodeVersion: Y10S4, GameMode: Bomb,
+		Teams:   [2]Team{{Role: Defense, StartingScore: 1, Score: 1}, {Role: Attack, StartingScore: 3, Score: 3}},
+		Players: roundEndPlayers()},
+		MatchFeedback: []MatchUpdate{{Type: DefuserPlantComplete, Username: "d1"}, {Type: DefuserDisableComplete, Username: "a1"}},
+	}
+	r.roundEnd()
+	for i, team := range r.Header.Teams {
+		if team.Won || team.WinCondition != "" {
+			t.Fatalf("team %d: want no result, got won=%v condition=%q", i, team.Won, team.WinCondition)
+		}
+	}
+}
+
+// the exits below the undecided guard still run for a decided round.
+func TestRoundEnd_DecidedConditions(t *testing.T) {
+	cases := []struct {
+		name string
+		feed []MatchUpdate
+		want WinCondition
+	}{
+		{"wipe", []MatchUpdate{{Type: Death, Username: "a1"}, {Type: Death, Username: "a2"}}, KilledOpponents},
+		{"plant, attack wins", []MatchUpdate{{Type: DefuserPlantComplete, Username: "a1"}}, DefusedBomb},
+	}
+	for _, c := range cases {
+		r := &Reader{Header: Header{CodeVersion: Y10S4, GameMode: Bomb,
+			Teams:   [2]Team{{Role: Attack, StartingScore: 0, Score: 0}, {Role: Defense, StartingScore: 0, Score: 1}},
+			Players: roundEndPlayers()},
+			MatchFeedback: c.feed,
+		}
+		if c.name == "plant, attack wins" {
+			r.Header.Teams[0].Score, r.Header.Teams[1].Score = 1, 0
+		}
+		r.roundEnd()
+		winner := 1
+		if c.name == "plant, attack wins" {
+			winner = 0
+		}
+		if got := r.Header.Teams[winner].WinCondition; got != c.want {
+			t.Errorf("%s: want %q, got %q", c.name, c.want, got)
+		}
+	}
+}
+
+// PlayerStats alone, with no team marked as winner: team 0's last player alive is not a clutch.
+func TestPlayerStats_NoWinnerNoClutchForTeam0(t *testing.T) {
+	r := clutchReader(2)
+	r.MatchFeedback = []MatchUpdate{{Type: Death, Username: "a2", ElapsedSeconds: 30}}
+	for _, s := range r.PlayerStats() {
+		if s.OneVx != 0 || s.ClutchDetail != nil {
+			t.Fatalf("%s: want no clutch, got 1vX=%d detail=%v", s.Username, s.OneVx, s.ClutchDetail)
+		}
+	}
+	r.Header.Teams[0].Won = true
+	if oneVxTotal(r) == 0 {
+		t.Fatal("control: with team 0 marked as winner the same feed should credit a 1vX")
+	}
+}
