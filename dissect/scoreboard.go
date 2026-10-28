@@ -17,6 +17,17 @@ type ScoreboardPlayer struct {
 	AssistsFromRound uint32
 }
 
+// scoreboardRow returns the scoreboard row of the player at idx in Header.Players. It adds the
+// missing rows, so a player first read after deriveTeamRoles (a late joiner) gets one too and
+// Scoreboard.Players stays parallel to Header.Players. idx must be a valid player index.
+func (r *Reader) scoreboardRow(idx int) *ScoreboardPlayer {
+	for len(r.Scoreboard.Players) <= idx {
+		p := r.Header.Players[len(r.Scoreboard.Players)]
+		r.Scoreboard.Players = append(r.Scoreboard.Players, ScoreboardPlayer{ID: p.DissectID})
+	}
+	return &r.Scoreboard.Players[idx]
+}
+
 func scoreboardEntryPlayerID(r *Reader) (id [4]byte, ok bool) {
 	start := r.offset - 17
 	if start < 0 || start+4 > len(r.b) {
@@ -161,10 +172,9 @@ func readScoreboardAssists(r *Reader) error {
 	username := "N/A"
 	if idx != -1 {
 		username = r.Header.Players[idx].Username
-		if idx < len(r.Scoreboard.Players) {
-			r.Scoreboard.Players[idx].Assists = assists
-			r.Scoreboard.Players[idx].AssistsFromRound++
-		}
+		row := r.scoreboardRow(idx)
+		row.Assists = assists
+		row.AssistsFromRound++
 	}
 	log.Debug().
 		Uint32("assists", assists).
@@ -187,10 +197,9 @@ func readScoreboardAssistsY10S4(r *Reader, assists uint32) error {
 	username := "N/A"
 	if found && idx >= 0 && idx < len(r.Header.Players) {
 		username = r.Header.Players[idx].Username
-		if idx < len(r.Scoreboard.Players) {
-			r.Scoreboard.Players[idx].Assists = assists
-			r.Scoreboard.Players[idx].AssistsFromRound++
-		}
+		row := r.scoreboardRow(idx)
+		row.Assists = assists
+		row.AssistsFromRound++
 	}
 	log.Debug().
 		Uint32("assists", assists).
@@ -223,9 +232,7 @@ func readScoreboardScore(r *Reader) error {
 	username := "N/A"
 	if idx != -1 {
 		username = r.Header.Players[idx].Username
-		if idx < len(r.Scoreboard.Players) {
-			r.Scoreboard.Players[idx].Score = score
-		}
+		r.scoreboardRow(idx).Score = score
 	}
 	log.Debug().
 		Uint32("score", score).
@@ -248,9 +255,7 @@ func readScoreboardScoreY10S4(r *Reader, score uint32) error {
 	username := "N/A"
 	if found && idx >= 0 && idx < len(r.Header.Players) {
 		username = r.Header.Players[idx].Username
-		if idx < len(r.Scoreboard.Players) {
-			r.Scoreboard.Players[idx].Score = score
-		}
+		r.scoreboardRow(idx).Score = score
 
 		// +100 score bonus identifies defuser planter/disabler
 		if r.pendingDefuserPlantIdx >= 0 {

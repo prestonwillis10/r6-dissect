@@ -105,7 +105,7 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 		winningTeamIndex = 1
 	}
 	for i, p := range r.Header.Players {
-		// the scoreboard is only populated once all players were read
+		// a player no scoreboard packet named has no row
 		var scorePlayer ScoreboardPlayer
 		if i < len(r.Scoreboard.Players) {
 			scorePlayer = r.Scoreboard.Players[i]
