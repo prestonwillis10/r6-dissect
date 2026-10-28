@@ -42,6 +42,7 @@ type Reader struct {
 	scoreboardIDToPlayer   map[[4]byte]int     // Y10S4+: maps scoreboard entry ID to player index
 	scoreboardInitialKills map[[4]byte]uint32  // Y10S4+: cumulative kills at round start per sbID
 	scoreboardFinalKills   map[int]uint32      // Y10S4+: latest cumulative kills seen per player index
+	scoreboardEntityOwner  map[[4]byte]uint64  // Y10S4+: scoreboard entity ID -> owning player object handle
 	pendingDefuserPlantIdx int                 // Y10S4+: index into MatchFeedback for DefuserPlantComplete/DisableComplete with unknown player (-1 = none)
 	pendingDefuserIsPlant  bool                // Y10S4+: true if pending event is plant (attacker), false if disable (defender)
 	lastPlayerScores       map[int]uint32      // Y10S4+: last known score per player index (for detecting +100 plant/disable bonus)
@@ -49,6 +50,7 @@ type Reader struct {
 	healthToSlot           map[[4]byte][4]byte // Y10S4+: maps a health component entity ID to its player slot entity ID
 	healthState            map[int]uint32      // Y10S4+: last health state per player index
 	healthTransitions      []healthTransition  // Y10S4+: health state changes of all players
+	healthSamples          []healthSample      // Y10S4+: current health values of all health components, in read order
 	scoreRevives           []scoreRevive       // Y10S4+: +50 score updates, matched with revives
 	Header                 Header              `json:"header"`
 	MatchFeedback          []MatchUpdate       `json:"matchFeedback"`
@@ -72,6 +74,7 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 		scoreboardIDToPlayer:   make(map[[4]byte]int),
 		scoreboardInitialKills: make(map[[4]byte]uint32),
 		scoreboardFinalKills:   make(map[int]uint32),
+		scoreboardEntityOwner:  make(map[[4]byte]uint64),
 		lastPlayerScores:       make(map[int]uint32),
 		defuserPawnToSlot:      make(map[[4]byte][4]byte),
 		healthToSlot:           make(map[[4]byte][4]byte),
@@ -101,8 +104,10 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 	r.Listen([]byte{0x22, 0xA9, 0xC8, 0x58, 0xD9}, readDefuserTimer)
 	if r.Header.CodeVersion >= Y10S4 {
 		r.Listen(defuserPawnIndicator, readDefuserPawn)
+		r.Listen(scoreboardEntityField, readScoreboardEntity)
 		r.Listen(healthLinkIndicator, readHealthLink)
 		r.Listen(healthStateIndicator, readHealthState)
+		r.Listen(healthValueIndicator, readHealthValue)
 	}
 	r.Listen([]byte{0xEC, 0xDA, 0x4F, 0x80}, readScoreboardScore)
 	r.Listen([]byte{0x4D, 0x73, 0x7F, 0x9E}, readScoreboardAssists)
@@ -283,6 +288,8 @@ func (r *Reader) Read() error {
 		r.relabelPostPlantWithoutPlant()
 		r.applyLoadouts()
 	}
+	r.nameUnknownSwapOperators()
+	r.warnUnknownOperators()
 	r.b = nil
 	return nil
 }

@@ -602,19 +602,29 @@ func (r *Reader) deriveTeamRoles() {
 	if len(r.Header.Players) > 10 {
 		log.Warn().Msg("tracked players greater than 10")
 	}
+	// rows already written by scoreboard packets move with their players, and so does the
+	// state keyed by player index
+	rows := make([]ScoreboardPlayer, 0, len(r.Header.Players))
+	newIndex := make([]int, len(r.Header.Players))
 	players := r.Header.Players[:0]
-	for _, p := range r.Header.Players {
+	for i, p := range r.Header.Players {
 		log.Debug().Interface("player", p).Send()
 		if p.Operator != 0 {
+			newIndex[i] = len(players)
 			players = append(players, p)
-			r.Scoreboard.Players = append(r.Scoreboard.Players, ScoreboardPlayer{
-				ID: p.DissectID,
-			})
+			row := ScoreboardPlayer{ID: p.DissectID}
+			if i < len(r.Scoreboard.Players) {
+				row = r.Scoreboard.Players[i]
+			}
+			rows = append(rows, row)
 		} else {
+			newIndex[i] = -1
 			log.Warn().Str("username", p.Username).Msg("operator id was 0, removing from list")
 		}
 	}
 	r.Header.Players = players
+	r.Scoreboard.Players = rows
+	r.movePlayerIndices(newIndex)
 	for _, p := range r.Header.Players {
 		if p.Operator == Recruit {
 			continue

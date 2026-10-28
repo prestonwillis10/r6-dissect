@@ -311,3 +311,293 @@ func TestResolveHealth_TwoRevivesSameSecond(t *testing.T) {
 		}
 	}
 }
+
+// healthValueReplay builds a health link record followed by a health value record
+// (23 <health> 00000000 25 26 76 C9 04 <hp>) and returns the offsets of the link and the value.
+func healthValueReplay(slot, health []byte, hp uint32) (b []byte, linkOffset, valueOffset int) {
+	b = append(b, 0x1B)
+	b = append(b, slot...)
+	b = append(b, 0, 0, 0, 0)
+	b = append(b, healthLinkIndicator...)
+	linkOffset = len(b)
+	b = append(b, health...)
+	b = append(b, 0, 0, 0, 0)
+	b = append(b, 0x23)
+	b = append(b, health...)
+	b = append(b, 0, 0, 0, 0)
+	b = append(b, healthValueIndicator...)
+	valueOffset = len(b)
+	b = append(b, byte(hp), byte(hp>>8), byte(hp>>16), byte(hp>>24))
+	b = append(b, make([]byte, 16)...)
+	return b, linkOffset, valueOffset
+}
+
+func TestHealthValue_Recorded(t *testing.T) {
+	slot, health := []byte{1, 2, 3, 4}, []byte{0x38, 0xbb, 0x2b, 0xf0}
+	b, link, value := healthValueReplay(slot, health, 87)
+	r := newHealthReader(b, slot)
+	r.offset = link
+	if err := readHealthLink(r); err != nil {
+		t.Fatal(err)
+	}
+	r.clock.started = true
+	r.clock.phase = ActionPhase
+	r.offset = value
+	if err := readHealthValue(r); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.healthSamples) != 1 {
+		t.Fatalf("want 1 sample, got %d", len(r.healthSamples))
+	}
+	s := r.healthSamples[0]
+	if s.hp != 87 || s.health != [4]byte{0x38, 0xbb, 0x2b, 0xf0} || !s.started || s.phase != ActionPhase {
+		t.Fatalf("unexpected sample %+v", s)
+	}
+}
+
+// pre-clock values matter: the defender spawn snapshot is written before the clock starts.
+func TestHealthValue_RecordedBeforeClock(t *testing.T) {
+	slot, health := []byte{1, 2, 3, 4}, []byte{0x38, 0xbb, 0x2b, 0xf0}
+	b, link, value := healthValueReplay(slot, health, 110)
+	r := newHealthReader(b, slot)
+	r.offset = link
+	_ = readHealthLink(r)
+	r.offset = value
+	if err := readHealthValue(r); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.healthSamples) != 1 || r.healthSamples[0].hp != 110 || r.healthSamples[0].started {
+		t.Fatalf("want one unstarted sample of 110, got %+v", r.healthSamples)
+	}
+}
+
+// the player slot is set after the first samples are read; the sample is keyed by health id.
+func TestHealthValue_ResolvedAfterPlayersRead(t *testing.T) {
+	slot, health := []byte{1, 2, 3, 4}, []byte{0x38, 0xbb, 0x2b, 0xf0}
+	b, link, value := healthValueReplay(slot, health, 100)
+	r := newHealthReader(b, slot)
+	r.Header.Players[0].slotID = nil
+	r.offset = link
+	_ = readHealthLink(r)
+	r.offset = value
+	if err := readHealthValue(r); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.healthSamples) != 1 {
+		t.Fatalf("sample dropped while the slot was unknown: %+v", r.healthSamples)
+	}
+	if got := r.playerIndexByHealth(r.healthSamples[0].health); got != -1 {
+		t.Fatalf("player resolved before the slot is known: %d", got)
+	}
+	r.Header.Players[0].slotID = slot
+	if got := r.playerIndexByHealth(r.healthSamples[0].health); got != 0 {
+		t.Fatalf("want player 0 after slot is set, got %d", got)
+	}
+}
+
+func TestHealthValue_UnlinkedIgnored(t *testing.T) {
+	slot, health := []byte{1, 2, 3, 4}, []byte{0x38, 0xbb, 0x2b, 0xf0}
+	b, _, value := healthValueReplay(slot, health, 100)
+	r := newHealthReader(b, slot)
+	r.offset = value
+	if err := readHealthValue(r); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.healthSamples) != 0 {
+		t.Fatalf("unlinked value recorded: %+v", r.healthSamples)
+	}
+}
+
+// a value record cut off by the end of the buffer is ignored.
+func TestHealthValue_Truncated(t *testing.T) {
+	slot, health := []byte{1, 2, 3, 4}, []byte{0x38, 0xbb, 0x2b, 0xf0}
+	b, link, value := healthValueReplay(slot, health, 100)
+	r := newHealthReader(b[:value+2], slot)
+	r.offset = link
+	_ = readHealthLink(r)
+	r.offset = value
+	if err := readHealthValue(r); err != nil || len(r.healthSamples) != 0 {
+		t.Fatalf("err %v samples %+v", err, r.healthSamples)
+	}
+}
+
+// smp builds samples that share a clock state.
+func smp(started bool, phase RoundPhase, hps ...uint32) []healthSample {
+	var out []healthSample
+	for _, hp := range hps {
+		out = append(out, healthSample{hp: hp, started: started, phase: phase})
+	}
+	return out
+}
+
+func cat(parts ...[]healthSample) []healthSample {
+	var out []healthSample
+	for _, p := range parts {
+		out = append(out, p...)
+	}
+	return out
+}
+
+func TestDamageTaken_Survivor(t *testing.T) {
+	s := cat(pre(110), smp(true, ActionPhase, 70))
+	if got := damageTakenFromSeries(s, false, false); got != 40 {
+		t.Fatalf("want 40, got %d", got)
+	}
+}
+
+func TestDamageTaken_Untouched(t *testing.T) {
+	s := cat(pre(0), smp(true, PrepPhase, 125))
+	if got := damageTakenFromSeries(s, true, false); got != 0 {
+		t.Fatalf("want 0, got %d", got)
+	}
+}
+
+func TestDamageTaken_AttackerStaleSnapshot(t *testing.T) {
+	cases := []struct {
+		name string
+		s    []healthSample
+		want int
+	}{
+		{"66 then 125", cat(pre(66), smp(true, PrepPhase, 125), smp(true, ActionPhase, 101, 77, 53, 29, 0)), 125},
+		{"110 p0 p100", cat(pre(110), smp(true, PrepPhase, 0, 100), smp(true, ActionPhase, 53, 6, 0)), 100},
+		{"stale above spawn", cat(pre(125), smp(true, PrepPhase, 110), smp(true, ActionPhase, 0)), 110},
+	}
+	for _, c := range cases {
+		if got := damageTakenFromSeries(c.s, true, true); got != c.want {
+			t.Errorf("%s: want %d, got %d", c.name, c.want, got)
+		}
+	}
+}
+
+func TestDamageTaken_DeathWithoutZero(t *testing.T) {
+	if got := damageTakenFromSeries(cat(pre(110), smp(true, ActionPhase, 87)), false, true); got != 110 {
+		t.Fatalf("want 110, got %d", got)
+	}
+	if got := damageTakenFromSeries(pre(110), false, true); got != 110 {
+		t.Fatalf("one-shot: want 110, got %d", got)
+	}
+	if got := damageTakenFromSeries(nil, false, true); got != 0 {
+		t.Fatalf("empty series: want 0, got %d", got)
+	}
+}
+
+func TestDamageTaken_ReviveAndRook(t *testing.T) {
+	s := cat(pre(110), smp(true, ActionPhase, 82, 54, 0, 20, 45, 22, 0))
+	if got := damageTakenFromSeries(s, false, true); got != 155 {
+		t.Fatalf("want 155, got %d", got)
+	}
+	s = cat(pre(125), smp(true, PrepPhase, 150), smp(true, ActionPhase, 90, 30, 0, 20, 0))
+	if got := damageTakenFromSeries(s, false, true); got != 170 {
+		t.Fatalf("prep Rook: want 170, got %d", got)
+	}
+}
+
+func TestDamageTaken_BoostDecay(t *testing.T) {
+	var act []uint32
+	for hp := uint32(130); hp >= 110; hp-- {
+		act = append(act, hp)
+	}
+	for hp := uint32(130); hp >= 121; hp-- {
+		act = append(act, hp)
+	}
+	act = append(act, 94, 67, 40, 13, 0)
+	s := cat(pre(0), smp(true, PrepPhase, 110), smp(true, ActionPhase, act...))
+	if got := damageTakenFromSeries(s, true, true); got != 121 {
+		t.Fatalf("want 121, got %d", got)
+	}
+}
+
+func TestDamageTaken_DefenderPrepDamage(t *testing.T) {
+	s := cat(pre(110), smp(true, PrepPhase, 78), smp(true, ActionPhase, 18, 0))
+	if got := damageTakenFromSeries(s, false, true); got != 110 {
+		t.Fatalf("want 110, got %d", got)
+	}
+}
+
+func TestDamageTaken_RealOneHPHitBelowSpawn(t *testing.T) {
+	s := cat(pre(110), smp(true, ActionPhase, 50, 49))
+	if got := damageTakenFromSeries(s, false, false); got != 61 {
+		t.Fatalf("want 61, got %d", got)
+	}
+}
+
+// an attacker whose last pre-action sample is a stale unstarted one (no prep reset written).
+func TestDamageTaken_AttackerNoPrepReset(t *testing.T) {
+	s := cat(pre(100), smp(true, ActionPhase, 60))
+	if got := damageTakenFromSeries(s, true, false); got != 40 {
+		t.Fatalf("want 40, got %d", got)
+	}
+}
+
+func TestReaderDamageTaken_RoleAndDeath(t *testing.T) {
+	sa, sd, sx := [4]byte{1, 0, 0, 0}, [4]byte{2, 0, 0, 0}, [4]byte{3, 0, 0, 0}
+	ha, hd := [4]byte{0xA1}, [4]byte{0xD1}
+	r := &Reader{
+		healthToSlot: map[[4]byte][4]byte{ha: sa, hd: sd},
+		Header: Header{
+			Teams: [2]Team{{Role: Attack}, {Role: Defense}},
+			Players: []Player{
+				{Username: "atk", TeamIndex: 0, slotID: sa[:]},
+				{Username: "def", TeamIndex: 1, slotID: sd[:]},
+				{Username: "none", TeamIndex: 1, slotID: sx[:]},
+			},
+		},
+		MatchFeedback: []MatchUpdate{{Type: Kill, Username: "atk", Target: "def"}},
+	}
+	for _, s := range cat(pre(66), smp(true, PrepPhase, 100), smp(true, ActionPhase, 60)) {
+		s.health = ha
+		r.healthSamples = append(r.healthSamples, s)
+	}
+	for _, s := range cat(pre(110), smp(true, ActionPhase, 87)) {
+		s.health = hd
+		r.healthSamples = append(r.healthSamples, s)
+	}
+	got := r.damageTaken()
+	if len(got) != 2 || got[0] != 40 || got[1] != 110 {
+		t.Fatalf("want {0:40 1:110}, got %v", got)
+	}
+}
+
+// pre builds samples read before the round clock started.
+func pre(hps ...uint32) []healthSample { return smp(false, ActionPhase, hps...) }
+
+// a player whose team index is out of range is treated as a defender, not a panic.
+func TestReaderDamageTaken_BadTeamIndex(t *testing.T) {
+	slot, health := [4]byte{1}, [4]byte{0xA1}
+	r := &Reader{
+		healthToSlot: map[[4]byte][4]byte{health: slot},
+		Header:       Header{Players: []Player{{Username: "x", TeamIndex: 5, slotID: slot[:]}}},
+	}
+	for _, s := range cat(pre(100), smp(true, ActionPhase, 80)) {
+		s.health = health
+		r.healthSamples = append(r.healthSamples, s)
+	}
+	if got := r.damageTaken(); got[0] != 20 {
+		t.Fatalf("want 20, got %v", got)
+	}
+}
+
+// stale snapshot values before the clock starts are not damage, even without a prep sample.
+func TestDamageTaken_AttackerStaleThenZero(t *testing.T) {
+	s := cat(pre(100, 0), smp(true, ActionPhase, 60))
+	if got := damageTakenFromSeries(s, true, false); got != 0 {
+		t.Fatalf("want 0, got %d", got)
+	}
+}
+
+// a death with no killer is a Death update for the player, not a Kill.
+func TestReaderDamageTaken_DeathWithoutKiller(t *testing.T) {
+	slot, health := [4]byte{1}, [4]byte{0xA1}
+	r := &Reader{
+		healthToSlot:  map[[4]byte][4]byte{health: slot},
+		Header:        Header{Players: []Player{{Username: "x", TeamIndex: 1, slotID: slot[:]}}},
+		MatchFeedback: []MatchUpdate{{Type: Death, Username: "x"}},
+	}
+	for _, s := range cat(pre(110), smp(true, ActionPhase, 87)) {
+		s.health = health
+		r.healthSamples = append(r.healthSamples, s)
+	}
+	if got := r.damageTaken(); got[0] != 110 {
+		t.Fatalf("want 110, got %v", got)
+	}
+}

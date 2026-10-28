@@ -48,6 +48,8 @@ type MatchUpdate struct {
 	// Y10S4+: for a DBNO read from the health state, the index+1 of its transition in
 	// Reader.healthTransitions (0 otherwise); for a Revive, that of the down it ends
 	healthTransition int
+	// names an Operator id newer than the operator table, from the header roleName
+	operatorName string
 }
 
 func (i MatchUpdateType) MarshalJSON() (text []byte, err error) {

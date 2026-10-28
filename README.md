@@ -92,6 +92,11 @@ See example outputs in [/examples](https://github.com/redraskal/r6-dissect/tree/
 | `spawn` | The attacker spawn location. For defenders, this is the defended site. |
 | `startingRoom` | The room a defender was in when the round started (Y9S1–Y11S2; Y11S3 replays no longer contain per-player room names). |
 
+### Stats fields
+| Field | Description |
+|---|---|
+| `damageTaken` | Y10S4+, on round and match `stats[]`. HP the player lost that round from any source (enemies, self, falls, teammates, Rook armor HP), read from the player's health component. Boost-health decay (Finka) is not counted, revives and armor are not subtracted, and overkill is not visible (clamped at the player's remaining HP). A match row sums its rounds. Absent before Y10S4 and in rounds without health data. |
+
 ### Match feedback fields
 | Field | Description |
 |---|---|

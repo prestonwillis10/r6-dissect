@@ -88,6 +88,10 @@ worktree: /home/prest/r6-dissect-worktrees/rev-42 branch=(detached 6be291d) for=
 worktree: /home/prest/r6-dissect-worktrees/rev-43 branch=(detached 6b3617d) for=rev-43
 worktree: /home/prest/r6-dissect-worktrees/rev-44 branch=(detached 138274f) for=rev-44
 worktree: /home/prest/r6-dissect-worktrees/rev-45 branch=(detached a2246f8) for=rev-45
+worktree: /home/prest/r6-dissect-worktrees/fp-s31 branch=fp/s31-listener-eof for=S31
+worktree: /home/prest/r6-dissect-worktrees/fp-s18 branch=fp/s18-late-joiner for=S18
+worktree: /home/prest/r6-dissect-worktrees/fp-s25 branch=fp/s25-damage-taken for=S25
+worktree: /home/prest/r6-dissect-worktrees/fp-s27 branch=fp/s27-operator-fallback for=S27
 
 ## Event log
 
@@ -126,6 +130,7 @@ worktree: /home/prest/r6-dissect-worktrees/rev-45 branch=(detached a2246f8) for=
 - 2026-10-28 validation-tree incident: the `val` worktree still held #40's uncommitted validation merge, so the first #44 run executed on a stale tree (detected from the `VAL` header, discarded). `lane/val.sh` now refuses a dirty or mid-merge tree and always aborts its merge.
 - 2026-10-28 W2 merges, each after `lane/val.sh` on the current track: #44 (`43a747a`, race `dissect/test 65.064s`), #43 (`9af84a4`, `61.850s`), #45 (`999e2af`, `44.347s` — the new scanner). Corpus expected failures unchanged throughout. **Wave 2 complete: #42, #43, #44, #45.**
 - 2026-10-28 reconciliation (`ef23785`): the 21916 `score-drop` entry relabelled from #19 to candidate 6 (snapshot rows dropped), with a comment.
+- 2026-10-28 W3 dispatched from `fe94907`: S31 (#31, Opus; Task 3 superseded by #45, Task 5 out of scope), S18 (#18), S25 (#25; Task 5 research out of scope), S27 (#27).
 
 ## Findings
 
@@ -155,6 +160,6 @@ finding: PR=38 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=
 4. **test: `TestAcceptance_Matches` matches expected failures by kind only, and the flaky entry can never turn red** — from PR #39 rev-39 F2+F3. A second finding of the same kind in a known folder stays green (`compareToKnown`); the 47572 `flaky: true` nondeterminism entry stays green after #26 lands, contrary to `scripts/corpus/README.md` ("When a fix lands, the test goes red for that entry"). Acceptance: adding a second null round to a known folder's expected output, or fixing the 47572 nondeterminism, turns the test red. Verified-against: 1fea036.
 5. **scripts: `fetch.sh` follows symlinks already in the output dir and cannot recover blobs that exist only in a fork's history** — from PR #39 rev-39 F4+F5. Probe: a symlink `out/<folder>` → `victim/` received the file; `--depth=1` reported a history-only blob `missing`. `scripts/corpus/README.md` overstates force-push safety. Acceptance: fetch.sh refuses a symlinked target path and fetches full history for the pinned refs (or the README says tips only). Verified-against: 1fea036.
 
-6. **scoreboard: the Y10S4+ score reader drops round-start snapshot rows (marker byte `0xa3`)** — from PR #43 rev-43 F3. In nicktstewart match3 R05 (21916), Mori.CU's 930 appears once, in the round-start snapshot at offset 20630 with byte −18 = `0xa3`; `scoreboardEntryHasMarker` requires `0x23`, so it is dropped and the player's cumulative score reads 930 → 0 in a round with no score change. Not owned by #17–#35 (#26 scopes snapshot detection out). The corpus entry `knownMatchFailures["nick-Match-2026-03-08_19-55-32-21916"]` `score-drop` is mislabelled `#19`; relabel to this candidate at reconciliation. Acceptance: the corpus test's 21916 folder passes the score-drop invariant. Verified-against: 6b3617d.
+6. **scoreboard: the Y10S4+ score reader drops round-start snapshot rows (marker byte `0xa3`)** — from PR #43 rev-43 F3. In nicktstewart match3 R05 (21916), player38's 930 appears once, in the round-start snapshot at offset 20630 with byte −18 = `0xa3`; `scoreboardEntryHasMarker` requires `0x23`, so it is dropped and the player's cumulative score reads 930 → 0 in a round with no score change. Not owned by #17–#35 (#26 scopes snapshot detection out). The corpus entry `knownMatchFailures["nick-Match-2026-03-08_19-55-32-21916"]` `score-drop` is mislabelled `#19`; relabel to this candidate at reconciliation. Acceptance: the corpus test's 21916 folder passes the score-drop invariant. Verified-against: 6b3617d.
 
 ## Observations
