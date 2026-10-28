@@ -64,6 +64,52 @@ func (r *Reader) scoreboardRow(idx int) *ScoreboardPlayer {
 	return &r.Scoreboard.Players[idx]
 }
 
+// movePlayerIndices moves the scoreboard state keyed by player index to the indices the players
+// have after deriveTeamRoles removed some: newIndex[i] is the new index of the player at i, or
+// -1 if they were removed. readPlayer and scoreboard packets can come before deriveTeamRoles.
+func (r *Reader) movePlayerIndices(newIndex []int) {
+	moved := func(i int) int {
+		if i < 0 || i >= len(newIndex) {
+			return -1
+		}
+		return newIndex[i]
+	}
+	// a removed player keeps their place, so the zip still pairs the others with their sbIDs
+	for k, i := range r.readPlayerOrder {
+		r.readPlayerOrder[k] = moved(i)
+	}
+	for id, i := range r.scoreboardIDToPlayer {
+		if j := moved(i); j >= 0 {
+			r.scoreboardIDToPlayer[id] = j
+		} else {
+			delete(r.scoreboardIDToPlayer, id)
+		}
+	}
+	r.scoreboardFinalKills = moveByPlayer(r.scoreboardFinalKills, moved)
+	r.lastPlayerScores = moveByPlayer(r.lastPlayerScores, moved)
+	revives := r.scoreRevives[:0]
+	for _, c := range r.scoreRevives {
+		if c.player = moved(c.player); c.player >= 0 {
+			revives = append(revives, c)
+		}
+	}
+	r.scoreRevives = revives
+	r.lastDefuserPlayerIndex = moved(r.lastDefuserPlayerIndex)
+}
+
+func moveByPlayer(m map[int]uint32, moved func(int) int) map[int]uint32 {
+	if m == nil {
+		return nil
+	}
+	out := make(map[int]uint32, len(m))
+	for i, v := range m {
+		if j := moved(i); j >= 0 {
+			out[j] = v
+		}
+	}
+	return out
+}
+
 func scoreboardEntryPlayerID(r *Reader) (id [4]byte, ok bool) {
 	start := r.offset - 17
 	if start < 0 || start+4 > len(r.b) {
