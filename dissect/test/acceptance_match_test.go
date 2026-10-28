@@ -40,12 +40,6 @@ var knownMatchFailures = map[string][]knownFailure{
 	"nick-Match-2026-03-08_19-55-32-21916": {
 		{kind: kindScoreDrop, owner: "fork-ports candidate 6 (the Y10S4+ score reader drops round-start snapshot rows)"},
 	},
-	// the scoreboard zip mapping shifts after a player leaves, and the reconcile then picks
-	// attributions in map order
-	"nick-Match-2026-03-09_17-13-54-47572": {
-		{kind: kindScoreDrop, owner: "#26"},
-		{kind: kindNondet, owner: "#26 and PR #12", flaky: true},
-	},
 }
 
 // TestAcceptance_Matches checks match-level invariants of the JSON output on real match folders
