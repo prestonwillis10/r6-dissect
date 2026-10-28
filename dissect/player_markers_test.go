@@ -66,3 +66,22 @@ func TestDetectPlayerMarkers(t *testing.T) {
 		})
 	}
 }
+
+// The tags are detected on the first call and kept for the round: later
+// players do not scan the round again, and an unknown round warns once.
+func TestReaderPlayerMarkers_Cached(t *testing.T) {
+	r := &Reader{b: testRound(testIDClassic, testUIClassic)}
+	r.Header.CodeVersion = 9950954
+	if r.markers != nil {
+		t.Fatal("markers set before the first call")
+	}
+	first := r.playerMarkers()
+	if !bytes.Equal(first.id, testIDClassic) || !bytes.Equal(first.uiID, testUIClassic) {
+		t.Fatalf("first = % X / % X, want the classic tags", first.id, first.uiID)
+	}
+	r.b = testRound(testIDAlpha03, testUIAlpha03)
+	second := r.playerMarkers()
+	if !bytes.Equal(second.id, testIDClassic) || !bytes.Equal(second.uiID, testUIClassic) {
+		t.Errorf("second call re-detected: % X / % X", second.id, second.uiID)
+	}
+}
