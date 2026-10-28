@@ -113,7 +113,7 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 		stats = append(stats, PlayerRoundStats{
 			Username:  p.Username,
 			TeamIndex: p.TeamIndex,
-			Operator:  p.Operator.String(),
+			Operator:  p.OperatorName(),
 			Assists:   int(scorePlayer.AssistsFromRound),
 			Score:     int(scorePlayer.Score),
 		})
