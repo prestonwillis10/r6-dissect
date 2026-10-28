@@ -3,6 +3,7 @@ package dissect
 import (
 	"bytes"
 	"encoding/hex"
+	"sort"
 
 	"github.com/rs/zerolog/log"
 )
@@ -458,28 +459,37 @@ func (r *Reader) reconcileKillsFromScoreboard() {
 	if len(overCredited) == 0 || len(underCredited) == 0 {
 		return
 	}
+	// expectedKills is a map, so the lists come out in random order; sort them so that which
+	// kill moves to whom is the same on every run (PR #12)
+	sort.Slice(overCredited, func(a, b int) bool { return overCredited[a].idx < overCredited[b].idx })
+	sort.Slice(underCredited, func(a, b int) bool { return underCredited[a].idx < underCredited[b].idx })
 
-	for ui := range underCredited {
-		underIdx := underCredited[ui].idx
-		if underIdx < 0 || underIdx >= len(r.Header.Players) {
-			continue
-		}
-		underUsername := r.Header.Players[underIdx].Username
-		underTeam := r.Header.Players[underIdx].TeamIndex
-
-		for oi := range overCredited {
-			if underCredited[ui].diff <= 0 || overCredited[oi].diff <= 0 {
-				break
-			}
-			overIdx := overCredited[oi].idx
-			if overIdx < 0 || overIdx >= len(r.Header.Players) {
+	// pass 0 moves only the kill that directly followed the under-credited player's scoreboard
+	// increment, for every pair, before pass 1 falls back to any eligible kill of the
+	// over-credited player
+	for pass := 0; pass < 2; pass++ {
+		for ui := range underCredited {
+			underIdx := underCredited[ui].idx
+			if underIdx < 0 || underIdx >= len(r.Header.Players) {
 				continue
 			}
-			overUsername := r.Header.Players[overIdx].Username
+			underUsername := r.Header.Players[underIdx].Username
+			underTeam := r.Header.Players[underIdx].TeamIndex
 
-			// prefer the kill that directly followed the under-credited player's scoreboard
-			// increment, then fall back to any eligible kill of the over-credited player
-			for pass := 0; pass < 2; pass++ {
+			for oi := range overCredited {
+				if underCredited[ui].diff <= 0 {
+					break
+				}
+				// an exhausted over-credited player ends only its own pair
+				if overCredited[oi].diff <= 0 {
+					continue
+				}
+				overIdx := overCredited[oi].idx
+				if overIdx < 0 || overIdx >= len(r.Header.Players) {
+					continue
+				}
+				overUsername := r.Header.Players[overIdx].Username
+
 				for i := range r.MatchFeedback {
 					if underCredited[ui].diff <= 0 || overCredited[oi].diff <= 0 {
 						break
