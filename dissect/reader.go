@@ -72,6 +72,7 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 		defuserPawnToSlot:      make(map[[4]byte][4]byte),
 		healthToSlot:           make(map[[4]byte][4]byte),
 		healthState:            make(map[int]uint32),
+		MatchFeedback:          make([]MatchUpdate, 0),
 	}
 	if chunkedCompression {
 		if err = r.readChunkedData(br); err != nil {
