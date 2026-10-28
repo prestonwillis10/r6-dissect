@@ -593,3 +593,28 @@ func TestReaderDamageTaken_BadTeamIndex(t *testing.T) {
 		t.Fatalf("want 20, got %v", got)
 	}
 }
+
+// stale snapshot values before the clock starts are not damage, even without a prep sample.
+func TestDamageTaken_AttackerStaleThenZero(t *testing.T) {
+	s := cat(pre(100, 0), smp(true, ActionPhase, 60))
+	if got := damageTakenFromSeries(s, true, false); got != 0 {
+		t.Fatalf("want 0, got %d", got)
+	}
+}
+
+// a death with no killer is a Death update for the player, not a Kill.
+func TestReaderDamageTaken_DeathWithoutKiller(t *testing.T) {
+	slot, health := [4]byte{1}, [4]byte{0xA1}
+	r := &Reader{
+		healthToSlot:  map[[4]byte][4]byte{health: slot},
+		Header:        Header{Players: []Player{{Username: "x", TeamIndex: 1, slotID: slot[:]}}},
+		MatchFeedback: []MatchUpdate{{Type: Death, Username: "x"}},
+	}
+	for _, s := range cat(pre(110), smp(true, ActionPhase, 87)) {
+		s.health = health
+		r.healthSamples = append(r.healthSamples, s)
+	}
+	if got := r.damageTaken(); got[0] != 110 {
+		t.Fatalf("want 110, got %v", got)
+	}
+}
