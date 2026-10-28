@@ -153,3 +153,174 @@ func TestScoreboardEntityLink_Fixtures(t *testing.T) {
 		t.Errorf("Y8S1: %d links read, want none", len(r.scoreboardEntityOwner))
 	}
 }
+
+const (
+	objA, objB, objC = 0xF0000010, 0xF0000020, 0xF0000030
+	objGone          = 0xF0000099 // a player object without a player packet: the player left
+	entA, entB, entC = 0xF00000A1, 0xF00000B1, 0xF00000C1
+	entE             = 0xF00000E1 // the entity of the player who left
+)
+
+// linkReader returns the state readPlayer leaves for players a, b and c (objects objA, objB and
+// objC), read in that order.
+func linkReader() *Reader {
+	r := &Reader{
+		Header:                 Header{CodeVersion: Y10S4},
+		inventory:              newInventoryState(),
+		scoreboardIDToPlayer:   map[[4]byte]int{},
+		scoreboardEntityOwner:  map[[4]byte]uint64{},
+		scoreboardInitialKills: map[[4]byte]uint32{},
+		scoreboardFinalKills:   map[int]uint32{},
+		lastPlayerScores:       map[int]uint32{},
+		pendingDefuserPlantIdx: -1,
+		lastDefuserPlayerIndex: -1,
+	}
+	for i, name := range []string{"a", "b", "c"} {
+		p := Player{Username: name, TeamIndex: i % 2, Operator: Recruit, DissectID: []byte{byte(0x11 * (i + 1)), 0, 0, 0}}
+		r.Header.Players = append(r.Header.Players, p)
+		r.readPlayerOrder = append(r.readPlayerOrder, i)
+	}
+	r.trackPlayerObject(objA, r.Header.Players[0])
+	r.trackPlayerObject(objB, r.Header.Players[1])
+	r.trackPlayerObject(objC, r.Header.Players[2])
+	return r
+}
+
+func (r *Reader) link(ent, obj uint64) {
+	r.scoreboardEntityOwner[sbID(ent)] = obj
+}
+
+func wantMapping(t *testing.T, r *Reader, want map[uint64]int, absent ...uint64) {
+	t.Helper()
+	for ent, idx := range want {
+		if got, ok := r.scoreboardIDToPlayer[sbID(ent)]; !ok || got != idx {
+			t.Errorf("entity %#x: got %d (mapped %v), want %d", ent, got, ok, idx)
+		}
+	}
+	for _, ent := range absent {
+		if got, ok := r.scoreboardIDToPlayer[sbID(ent)]; ok {
+			t.Errorf("entity %#x: mapped to %d, want unmapped", ent, got)
+		}
+	}
+}
+
+// The player who left keeps a linked entity whose owner has no player packet. It stays unmapped
+// and is not zipped onto the next player.
+func TestEnsureScoreboardMapping_LinkBeatsZip(t *testing.T) {
+	r := linkReader()
+	r.pendingSBIDs = [][4]byte{sbID(entA), sbID(entB), sbID(entE), sbID(entC)}
+	r.link(entA, objA)
+	r.link(entB, objB)
+	r.link(entE, objGone)
+	r.link(entC, objC)
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1, entC: 2}, entE)
+}
+
+// The form seen in the corpus: the entity of the player who left has no named link at all, and no
+// player matches its +4 candidate. It stays unmapped.
+func TestEnsureScoreboardMapping_UnlinkedLeftPlayer(t *testing.T) {
+	r := linkReader()
+	r.pendingSBIDs = [][4]byte{sbID(entA), sbID(entB), sbID(entE), sbID(entC)}
+	r.link(entA, objA)
+	r.link(entB, objB)
+	r.link(entC, objC)
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1, entC: 2}, entE)
+}
+
+// A late joiner's player packet comes after the first mapping: their entity is resolved on a
+// later call, and nothing is zipped onto them in the meantime.
+func TestEnsureScoreboardMapping_LateOwner(t *testing.T) {
+	r := linkReader()
+	r.inventory.players = map[uint64]inventoryPlayer{}
+	r.trackPlayerObject(objA, r.Header.Players[0])
+	r.trackPlayerObject(objB, r.Header.Players[1])
+	r.pendingSBIDs = [][4]byte{sbID(entA), sbID(entB), sbID(entE), sbID(entC)}
+	r.link(entA, objA)
+	r.link(entB, objB)
+	r.link(entE, objGone)
+	r.link(entC, objC)
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1}, entE, entC)
+	for id, idx := range r.scoreboardIDToPlayer {
+		if idx == 2 {
+			t.Errorf("sbID %x zipped onto player 2 before their player packet", id)
+		}
+	}
+	r.trackPlayerObject(objC, r.Header.Players[2])
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1, entC: 2}, entE)
+}
+
+// A round without any link keeps the zip of first-seen order with readPlayer order.
+func TestEnsureScoreboardMapping_NoLinksKeepsZip(t *testing.T) {
+	r := linkReader()
+	r.Header.Players = r.Header.Players[:2]
+	r.readPlayerOrder = []int{1, 0}
+	r.pendingSBIDs = [][4]byte{sbID(entA), sbID(entB)}
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 1, entB: 0})
+}
+
+// Without links, sbIDs past the zip still use the +4 rule.
+func TestEnsureScoreboardMapping_NoLinksKeepsPlus4(t *testing.T) {
+	r := linkReader()
+	r.Header.Players[2].DissectID = []byte{0xC5, 0x00, 0x00, 0xF0} // sbID(entC) + 4
+	r.readPlayerOrder = []int{0, 1}
+	r.pendingSBIDs = [][4]byte{sbID(entA), sbID(entB), sbID(entC)}
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1, entC: 2})
+}
+
+// Two entities linked to one player: the first one in pendingSBIDs wins, and no player is mapped twice.
+func TestEnsureScoreboardMapping_NoDoubleMapping(t *testing.T) {
+	r := linkReader()
+	const entA2 = 0xF00000A2
+	r.pendingSBIDs = [][4]byte{sbID(entA), sbID(entA2)}
+	r.link(entA, objA)
+	r.link(entA2, objA)
+	for i := 0; i < 2; i++ { // a second call must not map the other one either
+		r.ensureScoreboardMapping()
+		wantMapping(t, r, map[uint64]int{entA: 0}, entA2)
+	}
+}
+
+// In a round with links, an unlinked sbID still maps through the +4 rule.
+func TestEnsureScoreboardMapping_UnlinkedUsesPlus4(t *testing.T) {
+	r := linkReader()
+	r.Header.Players[2].DissectID = []byte{0xC5, 0x00, 0x00, 0xF0} // sbID(entC) + 4
+	r.pendingSBIDs = [][4]byte{sbID(entB), sbID(entA), sbID(entC)} // not in readPlayer order
+	r.link(entA, objA)
+	r.link(entB, objB)
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1, entC: 2})
+}
+
+// A linked sbID takes its player before an unlinked one whose +4 candidate is the same player,
+// even when the unlinked one was seen first.
+func TestEnsureScoreboardMapping_LinkBeatsPlus4(t *testing.T) {
+	r := linkReader()
+	r.Header.Players[0].DissectID = []byte{0xE5, 0x00, 0x00, 0xF0} // sbID(entE) + 4
+	r.trackPlayerObject(objA, r.Header.Players[0])
+	r.pendingSBIDs = [][4]byte{sbID(entE), sbID(entA), sbID(entB)}
+	r.link(entA, objA)
+	r.link(entB, objB)
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1}, entE)
+}
+
+// A reconnect gives the player a new dissect ID and a new player object; the entity linked to the
+// old object still resolves to them (by username).
+func TestEnsureScoreboardMapping_Reconnect(t *testing.T) {
+	r := linkReader()
+	r.Header.Players[0].DissectID = []byte{0x44, 0, 0, 0} // what readPlayer does when the username matches
+	r.trackPlayerObject(0xF0000011, r.Header.Players[0])
+	r.readPlayerOrder = append(r.readPlayerOrder, 0)
+	r.pendingSBIDs = [][4]byte{sbID(entB), sbID(entA), sbID(entC)} // not in readPlayer order
+	r.link(entA, objA)
+	r.link(entB, objB)
+	r.link(entC, objC)
+	r.ensureScoreboardMapping()
+	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1, entC: 2})
+}

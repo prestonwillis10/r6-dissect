@@ -107,7 +107,44 @@ func readScoreboardKills(r *Reader) error {
 	return nil
 }
 
+// ensureScoreboardMapping maps the sbIDs seen so far to player indices. In a round with
+// scoreboard entity links, a linked sbID maps only to the player owning its player object, and an
+// unlinked one only through the +4 rule; a sbID whose owner is not a known player yet is left for
+// a later call. A round without links falls back to zipping first-seen order with readPlayer
+// order, which shifts every later player when one entity has no player packet.
 func (r *Reader) ensureScoreboardMapping() {
+	if len(r.scoreboardEntityOwner) == 0 {
+		r.zipScoreboardMapping()
+		return
+	}
+	mappedPlayers := make(map[int]bool)
+	for _, idx := range r.scoreboardIDToPlayer {
+		mappedPlayers[idx] = true
+	}
+	for pass := 0; pass < 2; pass++ {
+		for _, sbID := range r.pendingSBIDs {
+			if _, exists := r.scoreboardIDToPlayer[sbID]; exists {
+				continue
+			}
+			owner, linked := r.scoreboardEntityOwner[sbID]
+			idx := -1
+			switch {
+			case pass == 0 && linked:
+				idx = r.playerIndexByObject(owner)
+			case pass == 1 && !linked:
+				idx = r.PlayerIndexByID([]byte{sbID[0] + 4, sbID[1], sbID[2], sbID[3]})
+			}
+			if idx >= 0 && !mappedPlayers[idx] {
+				r.scoreboardIDToPlayer[sbID] = idx
+				mappedPlayers[idx] = true
+			}
+		}
+	}
+}
+
+// zipScoreboardMapping is the mapping of a round without scoreboard entity links: the n-th sbID
+// seen goes to the n-th player read, and the rest use the +4 rule.
+func (r *Reader) zipScoreboardMapping() {
 	maxZip := len(r.pendingSBIDs)
 	if maxZip > len(r.readPlayerOrder) {
 		maxZip = len(r.readPlayerOrder)
