@@ -108,6 +108,26 @@ func TestNameUnknownSwapOperators(t *testing.T) {
 	}
 }
 
+// a swap to a known id keeps the table name even when the player's roleName names something else,
+// and only swap events are renamed.
+func TestNameUnknownSwapOperators_KnownAndNonSwap(t *testing.T) {
+	r := &Reader{
+		Header: Header{Players: []Player{{Username: "a", Operator: Ace, RoleName: "NOOR"}, {Username: "b", Operator: 123, RoleName: "NOOR"}}},
+		MatchFeedback: []MatchUpdate{
+			{Type: OperatorSwap, Username: "a", Operator: Ace},
+			{Type: Other, Username: "b", Operator: 123},
+		},
+	}
+	r.nameUnknownSwapOperators()
+	b, _ := json.Marshal(r.MatchFeedback)
+	s := string(b)
+	for _, want := range []string{`"operator":{"name":"Ace","id":104189664390}`, `"operator":{"name":"Operator(123)","id":123}`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("missing %s in %s", want, s)
+		}
+	}
+}
+
 func TestNameUnknownSwapOperators_NoRoleName(t *testing.T) {
 	r := &Reader{
 		Header:        Header{Players: []Player{{Username: "a", Operator: 123}}},
@@ -150,6 +170,10 @@ func forgetOperator(t *testing.T, ops ...Operator) {
 func TestReplay_UnknownOperatorsNamedFromHeader(t *testing.T) {
 	const skopos, twitch = Operator(386098331713), Operator(92270644111)
 	forgetOperator(t, skopos, twitch)
+	var logs bytes.Buffer
+	prev := log.Logger
+	log.Logger = zerolog.New(&logs)
+	t.Cleanup(func() { log.Logger = prev })
 	f, err := os.Open("test/data/replays/valid/Y11S2/custom_solid_snake.rec")
 	if err != nil {
 		t.Fatal(err)
@@ -180,6 +204,11 @@ func TestReplay_UnknownOperatorsNamedFromHeader(t *testing.T) {
 	}
 	if strings.Contains(s, "Operator(") {
 		t.Errorf("an unknown operator is still printed by id")
+	}
+	for _, want := range []string{`"op":386098331713`, `"roleName":"SKOPÓS"`, `"name":"Skopos"`, `"op":92270644111`, `"roleName":"TWITCH"`} {
+		if !strings.Contains(logs.String(), want) {
+			t.Errorf("Read did not warn with %s", want)
+		}
 	}
 	// the swap event to Twitch is the player's final pick
 	swaps := 0
