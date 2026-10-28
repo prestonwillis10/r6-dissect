@@ -3,6 +3,7 @@ package dissect
 import (
 	"bytes"
 	"cmp"
+	"io"
 	"math/rand/v2"
 	"reflect"
 	"slices"
@@ -73,6 +74,41 @@ func TestFindQueries_OutOfRange(t *testing.T) {
 	for _, c := range [][2]int{{0, 0}, {3, 3}, {2, 1}, {-1, 2}, {0, 4}} {
 		if got := r.findQueries(c[0], c[1]); got != nil {
 			t.Errorf("findQueries(%d, %d) = %v, want nil", c[0], c[1], got)
+		}
+	}
+}
+
+// referenceSeek is the definition Seek must meet: the first occurrence of
+// pattern that starts at or after start and ends before the last byte of b
+// (the window the byte walk examined), leaving the offset just past it.
+// Without one, the offset moves to len(b), or one past start when start was
+// already at the end.
+func referenceSeek(b, pattern []byte, start int) (int, error) {
+	for i := start; i+len(pattern) <= len(b)-1; i++ {
+		if bytes.Equal(b[i:i+len(pattern)], pattern) {
+			return i + len(pattern), nil
+		}
+	}
+	if start >= len(b) {
+		return start + 1, io.EOF
+	}
+	return len(b), io.EOF
+}
+
+func TestSeek_MatchesReference(t *testing.T) {
+	quiet(t) // every miss logs a large seek
+	rng := rand.New(rand.NewPCG(7, 2026))
+	for c := 0; c < 20000; c++ {
+		b, queries, start, _ := randomCase(rng)
+		if rng.IntN(10) == 0 {
+			start = len(b) // a Seek from the end of the buffer
+		}
+		pattern := queries[0]
+		r := &Reader{b: b, offset: start}
+		err := r.Seek(pattern)
+		wantOffset, wantErr := referenceSeek(b, pattern, start)
+		if err != wantErr || r.offset != wantOffset {
+			t.Fatalf("case %d: b=%X pattern=%X start=%d\n got (%v, offset %d)\nwant (%v, offset %d)", c, b, pattern, start, err, r.offset, wantErr, wantOffset)
 		}
 	}
 }

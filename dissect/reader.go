@@ -304,33 +304,29 @@ func (r *Reader) Listen(pattern []byte, callback func(r *Reader) error) {
 	r.listeners = append(r.listeners, []func(reader *Reader) error{callback})
 }
 
-// Seek skips through the replay until the pattern is found.
+// Seek skips through the replay until the pattern is found and leaves the
+// offset just past it. If the pattern is not found, it returns io.EOF.
+//
+// Seek used to walk r.Bytes(1), which reports io.EOF on reaching the last byte
+// of r.b, so the walk never examined that byte. The search keeps that window,
+// and on a miss leaves the offset where the walk stopped.
 func (r *Reader) Seek(pattern []byte) error {
 	start := r.offset
-	i := 0
-	for {
-		b, err := r.Bytes(1)
-		if err != nil {
-			if Ok(err) {
-				pc, _, _, ok := runtime.Caller(1)
-				details := runtime.FuncForPC(pc)
-				if ok && details != nil {
-					log.Warn().Int("bytes", r.offset-start).Interface("func", details.Name()).Msg("large seek")
-				} else {
-					log.Warn().Int("bytes", r.offset-start).Msg("large seek")
-				}
-			}
-			return err
-		}
-		if b[0] != pattern[i] {
-			i = 0
-			continue
-		}
-		i++
-		if i == len(pattern) {
+	if start < len(r.b) {
+		if k := bytes.Index(r.b[start:len(r.b)-1], pattern); k >= 0 {
+			r.offset = start + k + len(pattern)
 			return nil
 		}
 	}
+	r.offset = max(len(r.b), start+1)
+	pc, _, _, ok := runtime.Caller(1)
+	details := runtime.FuncForPC(pc)
+	if ok && details != nil {
+		log.Warn().Int("bytes", r.offset-start).Interface("func", details.Name()).Msg("large seek")
+	} else {
+		log.Warn().Int("bytes", r.offset-start).Msg("large seek")
+	}
+	return io.EOF
 }
 
 // Skip increases the replay offset by n bytes.
