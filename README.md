@@ -10,7 +10,7 @@ Download the latest version here: https://github.com/redraskal/r6-dissect/releas
 
 ## Features
 - **Match Info** — Game version, map, gamemode, match type, teams, players, operators
-- **Match Feedback** — Kills, teamkills, headshots, objective locates, defuser plants/disables, BattlEye bans, DCs
+- **Match Feedback** — Kills, teamkills, headshots, DBNOs (downs) and revives (Y10S4+), objective locates, defuser plants/disables, BattlEye bans, DCs
 - **Round Timeline** — Every event has a round phase and a monotonic time since the action phase started
 - **Scoreboard** — Per-player kills, assists, deaths, and scores with kill/death reconciliation
 - **Output Formats** — JSON or Excel (.xlsx)
@@ -93,12 +93,14 @@ See example outputs in [/examples](https://github.com/redraskal/r6-dissect/tree/
 ### Match feedback fields
 | Field | Description |
 |---|---|
-| `time` / `timeInSeconds` | The in-game timer when the event happened. The timer restarts its countdown in every phase, so after a plant it shows the defuser timer, and when a round ends early it reads 0:00 for the events that end the round. |
-| `phase` | `Prep`, `Action` or `PostPlant` (after the defuser was planted). |
+| `time` / `timeInSeconds` | The in-game timer when the event happened. The timer restarts its countdown in every phase, so after a plant it shows the defuser timer, and after the action timer runs out without a plant it shows the end-of-round countdown. When a round ends early it reads 0:00 for the events that end the round. |
+| `phase` | `Prep`, `Action` or `PostPlant` (after the defuser was planted). Rounds without a plant have no `PostPlant` events. |
 | `elapsedSeconds` | Seconds since the action phase started. Always increases during a round; negative during the preparation phase. Use this to order or compare events. |
-| `teamKill` | The kill was a teamkill. Teamkills count as a death for the victim but not as a kill. |
+| `teamKill` | The kill was a teamkill. Teamkills count as a death for the victim but not as a kill. On a `DBNO`, the down ended in a teamkill. |
+| `DBNO` events | Y10S4+. `target` is the downed player. `username` is the player credited with the kill if the downed player died, otherwise empty (the replay does not say who downed a player who was revived or bled out). |
+| `Revive` events | Y10S4+. `target` is the revived player. `username` is the reviver, if one could be found. |
 
-On Y10S4+ replays, the defuser planter/disabler is read from the defuser packets; if that player cannot be resolved, they are inferred from the +100 score bonus or the last player alive. A `DefuserDisableComplete` is added when defense wins a round after a plant without one being recorded. On Y10S4+ replays, the killer of a kill can be corrected from the scoreboard when the kill feed and the scoreboard disagree.
+On Y10S4+ replays, the defuser planter/disabler is read from the defuser packets; if that player cannot be resolved, they are inferred from the +100 score bonus or the last player alive. A `DefuserDisableComplete` is added when defense wins a round after a plant without one being recorded. On Y10S4+ replays, the killer of a kill can be corrected from the scoreboard when the kill feed and the scoreboard disagree. Downs and revives are read from each player's health state; the reviver is inferred from the +50 score bonus of a teammate within 3 seconds of the revive.
 
 ## Importing a .rec file
 ```go
@@ -161,6 +163,10 @@ The tests comparing our operators with Ubisoft's website only run when `R6_DISSE
 Each `.rec` file in `dissect/test/data/replays/valid` is parsed and compared with the `.rec.json` file next to it. After an intended change in output, regenerate them with:
 ```bash
 go test ./dissect/test -run TestReader_Read -update
+```
+Whole matches that are too large to commit can be checked with `TestAcceptance_Replays` (event order, downs and revives, phases, gmSettings):
+```bash
+R6_DISSECT_REPLAY_DIRS=/path/to/Match-A:/path/to/Match-B go test ./dissect/test -run TestAcceptance -v
 ```
 
 ### Acceptance on real replays

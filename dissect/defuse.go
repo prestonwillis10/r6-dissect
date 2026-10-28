@@ -444,6 +444,7 @@ func (r *Reader) stopDefuserRun() {
 		Phase:          run.phase,
 		ElapsedSeconds: run.elapsed,
 	}
-	r.MatchFeedback = append(r.MatchFeedback, u)
+	// the stop can be noticed after later events were recorded
+	r.insertByElapsed(u)
 	log.Debug().Interface("match_update", u).Send()
 }

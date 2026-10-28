@@ -33,18 +33,22 @@ type Reader struct {
 	defuserRun             defuserRun          // Y10S4+: the plant/disable action the defuser timer currently belongs to
 	readPartial            bool                // reads up to the player info packets
 	playersRead            int
-	lastScoreboardKiller   string             // Y10S4+: player whose scoreboard kill counter increased last, until the next kill packet
-	pendingSBIDs           [][4]byte          // Y10S4+: sbIDs in header-entry order for deferred mapping
-	readPlayerOrder        []int              // Y10S4+: player indices in readPlayer order
-	scoreboardIDToPlayer   map[[4]byte]int    // Y10S4+: maps scoreboard entry ID to player index
-	scoreboardInitialKills map[[4]byte]uint32 // Y10S4+: cumulative kills at round start per sbID
-	scoreboardFinalKills   map[int]uint32     // Y10S4+: latest cumulative kills seen per player index
-	pendingDefuserPlantIdx int                // Y10S4+: index into MatchFeedback for DefuserPlantComplete/DisableComplete with unknown player (-1 = none)
-	pendingDefuserIsPlant  bool               // Y10S4+: true if pending event is plant (attacker), false if disable (defender)
-	lastPlayerScores       map[int]uint32     // Y10S4+: last known score per player index (for detecting +100 plant/disable bonus)
-	inventory              *inventoryState    // Y8S1+: player inventories for loadouts
-	Header                 Header             `json:"header"`
-	MatchFeedback          []MatchUpdate      `json:"matchFeedback"`
+	lastScoreboardKiller   string              // Y10S4+: player whose scoreboard kill counter increased last, until the next kill packet
+	pendingSBIDs           [][4]byte           // Y10S4+: sbIDs in header-entry order for deferred mapping
+	readPlayerOrder        []int               // Y10S4+: player indices in readPlayer order
+	scoreboardIDToPlayer   map[[4]byte]int     // Y10S4+: maps scoreboard entry ID to player index
+	scoreboardInitialKills map[[4]byte]uint32  // Y10S4+: cumulative kills at round start per sbID
+	scoreboardFinalKills   map[int]uint32      // Y10S4+: latest cumulative kills seen per player index
+	pendingDefuserPlantIdx int                 // Y10S4+: index into MatchFeedback for DefuserPlantComplete/DisableComplete with unknown player (-1 = none)
+	pendingDefuserIsPlant  bool                // Y10S4+: true if pending event is plant (attacker), false if disable (defender)
+	lastPlayerScores       map[int]uint32      // Y10S4+: last known score per player index (for detecting +100 plant/disable bonus)
+	inventory              *inventoryState     // Y8S1+: player inventories for loadouts
+	healthToSlot           map[[4]byte][4]byte // Y10S4+: maps a health component entity ID to its player slot entity ID
+	healthState            map[int]uint32      // Y10S4+: last health state per player index
+	healthTransitions      []healthTransition  // Y10S4+: health state changes of all players
+	scoreRevives           []scoreRevive       // Y10S4+: +50 score updates, matched with revives
+	Header                 Header              `json:"header"`
+	MatchFeedback          []MatchUpdate       `json:"matchFeedback"`
 	Scoreboard             Scoreboard
 }
 
@@ -66,6 +70,8 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 		scoreboardFinalKills:   make(map[int]uint32),
 		lastPlayerScores:       make(map[int]uint32),
 		defuserPawnToSlot:      make(map[[4]byte][4]byte),
+		healthToSlot:           make(map[[4]byte][4]byte),
+		healthState:            make(map[int]uint32),
 	}
 	if chunkedCompression {
 		if err = r.readChunkedData(br); err != nil {
@@ -90,6 +96,8 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 	r.Listen([]byte{0x22, 0xA9, 0xC8, 0x58, 0xD9}, readDefuserTimer)
 	if r.Header.CodeVersion >= Y10S4 {
 		r.Listen(defuserPawnIndicator, readDefuserPawn)
+		r.Listen(healthLinkIndicator, readHealthLink)
+		r.Listen(healthStateIndicator, readHealthState)
 	}
 	r.Listen([]byte{0xEC, 0xDA, 0x4F, 0x80}, readScoreboardScore)
 	r.Listen([]byte{0x4D, 0x73, 0x7F, 0x9E}, readScoreboardAssists)
@@ -296,7 +304,10 @@ func (r *Reader) Read() (err error) {
 		r.stopDefuserRun()
 		r.roundEnd()
 		r.stampNew(n)
+		// after roundEnd, so that kills corrected from the scoreboard credit the downs
+		r.resolveHealthEvents()
 		r.backfillLeadingUpdates()
+		r.relabelPostPlantWithoutPlant()
 		r.applyLoadouts()
 	}
 	r.b = nil

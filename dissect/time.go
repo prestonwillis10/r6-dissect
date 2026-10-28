@@ -161,6 +161,22 @@ func (r *Reader) backfillLeadingUpdates() {
 	}
 }
 
+// relabelPostPlantWithoutPlant labels events Action when the round had no plant. Any upward
+// timer jump in the action phase is read as the defuser countdown, but when the action timer
+// runs out without a plant, the next countdown is the end of the round.
+func (r *Reader) relabelPostPlantWithoutPlant() {
+	for _, u := range r.MatchFeedback {
+		if u.Type == DefuserPlantComplete {
+			return
+		}
+	}
+	for i := range r.MatchFeedback {
+		if r.MatchFeedback[i].Phase == PostPlantPhase {
+			r.MatchFeedback[i].Phase = ActionPhase
+		}
+	}
+}
+
 func readTime(r *Reader) error {
 	time, err := r.Uint32()
 	if err != nil {
