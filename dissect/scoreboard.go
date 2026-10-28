@@ -14,8 +14,9 @@ import (
 // and the first 4 bytes of the entity handle are the sbID its scoreboard fields are written
 // under (23 <sbID> 00000000 1CD2B19D ...). The player object is the one the loadout code
 // tracks (playerObjectField), so the owner resolves through playerIndexByObject. A player who
-// left the match keeps an entity but has no player packet (in the rounds seen, its reference
-// is the 1A form, which has no owner handle); that entity stays unmapped.
+// left the match keeps an entity but has no player packet. Its reference can be the 1A form,
+// which has no owner handle, or name a player object no player packet resolves; either way the
+// entity stays unmapped instead of shifting the players after it.
 var (
 	scoreboardEntityField = []byte{0xEB, 0x21, 0x9B, 0x38}
 	scoreboardEntityClass = []byte{0x18, 0xA5, 0x91, 0xA1}
