@@ -35,13 +35,8 @@ type knownFailure struct {
 // green while exactly these fail. If one starts passing, the test goes red and the entry must be
 // removed; if any other folder or invariant fails, it goes red as well.
 var knownMatchFailures = map[string][]knownFailure{
-	// a round with no events is written as "matchFeedback": null
 	"nick-Match-2026-03-08_19-55-32-21916": {
-		{kind: kindNotArray, owner: "#30"},
 		{kind: kindScoreDrop, owner: "#19 (round forfeited in prep keeps no scoreboard)"},
-	},
-	"nick-Match-2026-03-08_19-55-32-26676": {
-		{kind: kindNotArray, owner: "#30"},
 	},
 	// the scoreboard zip mapping shifts after a player leaves, and the reconcile then picks
 	// attributions in map order
