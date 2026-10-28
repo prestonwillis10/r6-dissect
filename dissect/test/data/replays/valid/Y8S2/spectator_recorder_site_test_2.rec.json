@@ -412,7 +412,9 @@
 			"time": "2:29",
 			"timeInSeconds": 149,
 			"phase": "Action",
-			"elapsedSeconds": 30
+			"elapsedSeconds": 30,
+			"weaponID": 1366019640,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -425,7 +427,9 @@
 			"time": "1:38",
 			"timeInSeconds": 98,
 			"phase": "Action",
-			"elapsedSeconds": 81
+			"elapsedSeconds": 81,
+			"weaponID": 133651070294,
+			"weaponSlot": "gadget"
 		},
 		{
 			"type": {
@@ -438,7 +442,9 @@
 			"time": "1:35",
 			"timeInSeconds": 95,
 			"phase": "Action",
-			"elapsedSeconds": 84
+			"elapsedSeconds": 84,
+			"weaponID": 1366019340,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -451,7 +457,9 @@
 			"time": "1:34",
 			"timeInSeconds": 94,
 			"phase": "Action",
-			"elapsedSeconds": 85
+			"elapsedSeconds": 85,
+			"weaponID": 1366019304,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -464,7 +472,9 @@
 			"time": "1:33",
 			"timeInSeconds": 93,
 			"phase": "Action",
-			"elapsedSeconds": 86
+			"elapsedSeconds": 86,
+			"weaponID": 1366019592,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -477,7 +487,9 @@
 			"time": "1:27",
 			"timeInSeconds": 87,
 			"phase": "Action",
-			"elapsedSeconds": 92
+			"elapsedSeconds": 92,
+			"weaponID": 1366019652,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -490,7 +502,9 @@
 			"time": "0:00",
 			"timeInSeconds": 0,
 			"phase": "Action",
-			"elapsedSeconds": 97
+			"elapsedSeconds": 97,
+			"weaponID": 1366019640,
+			"weaponSlot": "primary"
 		}
 	]
 }

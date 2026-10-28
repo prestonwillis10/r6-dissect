@@ -20,6 +20,9 @@ type PlayerRoundStats struct {
 	HeadshotPercentage float64       `json:"headshotPercentage"`
 	OneVx              int           `json:"1vX,omitempty"`
 	ClutchDetail       *ClutchDetail `json:"clutchDetail,omitempty"`
+	// DamageTaken is the HP the player lost this round from any source, read from the health
+	// component (Y10S4+). Nil, and omitted from JSON, when the round has no health data.
+	DamageTaken *int `json:"damageTaken,omitempty"`
 }
 
 type PlayerMatchStats struct {
@@ -31,6 +34,8 @@ type PlayerMatchStats struct {
 	Assists            int     `json:"assists"`
 	Headshots          int     `json:"headshots"`
 	HeadshotPercentage float64 `json:"headshotPercentage"`
+	// DamageTaken is the sum over the rounds that have it; nil when no round does.
+	DamageTaken *int `json:"damageTaken,omitempty"`
 }
 
 // OpeningKill returns the first player to kill. Teamkills do not count.
@@ -92,6 +97,11 @@ func (r *Reader) NumPlayers(team int) int {
 	return n
 }
 
+// roundDecided reports whether a team won the round.
+func (r *Reader) roundDecided() bool {
+	return r.Header.Teams[0].Won || r.Header.Teams[1].Won
+}
+
 func (r *Reader) PlayerStats() []PlayerRoundStats {
 	stats := make([]PlayerRoundStats, 0)
 	index := make(map[string]int)
@@ -100,7 +110,7 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 		winningTeamIndex = 1
 	}
 	for i, p := range r.Header.Players {
-		// the scoreboard is only populated once all players were read
+		// a player no scoreboard packet named has no row
 		var scorePlayer ScoreboardPlayer
 		if i < len(r.Scoreboard.Players) {
 			scorePlayer = r.Scoreboard.Players[i]
@@ -108,7 +118,7 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 		stats = append(stats, PlayerRoundStats{
 			Username:  p.Username,
 			TeamIndex: p.TeamIndex,
-			Operator:  p.Operator.String(),
+			Operator:  p.OperatorName(),
 			Assists:   int(scorePlayer.AssistsFromRound),
 			Score:     int(scorePlayer.Score),
 		})
@@ -120,6 +130,9 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 			return stats[i].TeamIndex
 		}
 		return -1
+	}
+	for i, v := range r.damageTaken() {
+		stats[i].DamageTaken = &v
 	}
 	lastDeath := -1
 	for _, a := range r.MatchFeedback {
@@ -165,7 +178,7 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 	} else if nWinnersLeftAlive == 0 && lastDeathWasWinner {
 		lastWinnerStanding = lastDeath
 	}
-	if lastWinnerStanding > -1 {
+	if lastWinnerStanding > -1 && r.roundDecided() { // a round without a result has no clutch
 		username := stats[lastWinnerStanding].Username
 		teamLeft := r.NumPlayers(winningTeamIndex)
 		opponentsAlive := r.NumPlayers(1 - winningTeamIndex)
@@ -231,6 +244,9 @@ func (m *MatchReader) PlayerStats() []PlayerMatchStats {
 	stats := make([]PlayerMatchStats, 0)
 	index := make(map[string]int)
 	for i, r := range m.rounds {
+		if r == nil {
+			continue
+		}
 		for _, p := range r.PlayerStats() {
 			if len(stats) == 0 || stats[index[p.Username]].Username != p.Username {
 				stats = append(stats, PlayerMatchStats{
@@ -248,6 +264,13 @@ func (m *MatchReader) PlayerStats() []PlayerMatchStats {
 			stats[i].Assists += p.Assists
 			stats[i].Headshots += p.Headshots
 			stats[i].HeadshotPercentage = headshotPercentage(stats[i].Headshots, stats[i].Kills)
+			if p.DamageTaken != nil {
+				sum := *p.DamageTaken
+				if stats[i].DamageTaken != nil {
+					sum += *stats[i].DamageTaken
+				}
+				stats[i].DamageTaken = &sum
+			}
 		}
 	}
 	return stats

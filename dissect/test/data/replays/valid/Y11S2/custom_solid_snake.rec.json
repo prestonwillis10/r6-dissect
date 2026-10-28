@@ -404,7 +404,9 @@
 			"time": "2:37",
 			"timeInSeconds": 157,
 			"phase": "Action",
-			"elapsedSeconds": 22
+			"elapsedSeconds": 22,
+			"weaponID": 139558931689,
+			"weaponSlot": "secondary"
 		},
 		{
 			"type": {
@@ -417,7 +419,9 @@
 			"time": "2:17",
 			"timeInSeconds": 137,
 			"phase": "Action",
-			"elapsedSeconds": 42
+			"elapsedSeconds": 42,
+			"weaponID": 409707105529,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -430,7 +434,9 @@
 			"time": "2:10",
 			"timeInSeconds": 130,
 			"phase": "Action",
-			"elapsedSeconds": 49
+			"elapsedSeconds": 49,
+			"weaponID": 1366019244,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -443,7 +449,9 @@
 			"time": "1:54",
 			"timeInSeconds": 114,
 			"phase": "Action",
-			"elapsedSeconds": 65
+			"elapsedSeconds": 65,
+			"weaponID": 78526932091,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -468,7 +476,9 @@
 			"time": "1:44",
 			"timeInSeconds": 104,
 			"phase": "Action",
-			"elapsedSeconds": 75
+			"elapsedSeconds": 75,
+			"weaponID": 78526932091,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -481,7 +491,9 @@
 			"time": "1:39",
 			"timeInSeconds": 99,
 			"phase": "Action",
-			"elapsedSeconds": 80
+			"elapsedSeconds": 80,
+			"weaponID": 68967567430,
+			"weaponSlot": "secondary"
 		},
 		{
 			"type": {
@@ -505,7 +517,9 @@
 			"time": "1:20",
 			"timeInSeconds": 80,
 			"phase": "Action",
-			"elapsedSeconds": 99
+			"elapsedSeconds": 99,
+			"weaponID": 161289761758,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -529,7 +543,9 @@
 			"time": "0:39",
 			"timeInSeconds": 39,
 			"phase": "PostPlant",
-			"elapsedSeconds": 106
+			"elapsedSeconds": 106,
+			"weaponID": 1366019640,
+			"weaponSlot": "primary"
 		},
 		{
 			"type": {
@@ -542,7 +558,9 @@
 			"time": "0:30",
 			"timeInSeconds": 30,
 			"phase": "PostPlant",
-			"elapsedSeconds": 115
+			"elapsedSeconds": 115,
+			"weaponID": 161289761758,
+			"weaponSlot": "primary"
 		}
 	]
 }

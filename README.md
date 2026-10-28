@@ -64,12 +64,18 @@ Example output (abbreviated):
   ]
 }
 ```
+`matchFeedback` is always an array: `[]` for a round with no events.
+
 Loadouts (Y8S1+) are the game's asset IDs for the primary/secondary weapon, secondary gadget and operator ability at the end of the preparation phase. IDs are stable across seasons and shared by every operator who can equip the item; names are not resolved.
+
+On Y9S4+ replays, a round whose replay holds no result (neither header score moved: the round was abandoned or remade, or the recording ended first) has `"won": false` on both teams and no `winCondition`, and credits no 1vX.
 
 Export the entire match:
 ```bash
 r6-dissect Match-2026-03-26_21-19-17-21932 -o match.json
 ```
+A round file that cannot be read (empty, unreadable, or cut inside a zstd frame) is skipped: the match JSON lists it under `skippedRounds` (`file`, `index` = its 0-based position in the folder, `error`), stderr gets a `round skipped` line, and the CLI still exits 0. If no round file in the folder can be read, it exits 1. A file cut exactly at a zstd frame boundary is not detected: it reads as a shorter round, with no warning.
+
 Export an Excel spreadsheet:
 ```bash
 r6-dissect Match-2026-03-26_21-19-17-21932 -o match.xlsx
@@ -88,7 +94,13 @@ See example outputs in [/examples](https://github.com/redraskal/r6-dissect/tree/
 | Field | Description |
 |---|---|
 | `spawn` | The attacker spawn location. For defenders, this is the defended site. |
+| `operator` | `name` and `id`. An operator ID newer than this build's operator table gets its `name` from the header `roleName` (for example `SOLID SNAKE` becomes `SolidSnake`); the `id` is unchanged. An `OperatorSwap` event to such an ID is named the same way when it is that player's final operator. |
 | `startingRoom` | The room a defender was in when the round started (Y9S1–Y11S2; Y11S3 replays no longer contain per-player room names). |
+
+### Stats fields
+| Field | Description |
+|---|---|
+| `damageTaken` | Y10S4+, on round and match `stats[]`. HP the player lost that round from any source (enemies, self, falls, teammates, Rook armor HP), read from the player's health component. Boost-health decay (Finka) is not counted, revives and armor are not subtracted, and overkill is not visible (clamped at the player's remaining HP). A match row sums its rounds. Absent before Y10S4 and in rounds without health data. |
 
 ### Match feedback fields
 | Field | Description |
@@ -97,10 +109,15 @@ See example outputs in [/examples](https://github.com/redraskal/r6-dissect/tree/
 | `phase` | `Prep`, `Action` or `PostPlant` (after the defuser was planted). Rounds without a plant have no `PostPlant` events. |
 | `elapsedSeconds` | Seconds since the action phase started. Always increases during a round; negative during the preparation phase. Use this to order or compare events. |
 | `teamKill` | The kill was a teamkill. Teamkills count as a death for the victim but not as a kill. On a `DBNO`, the down ended in a teamkill. |
+| `weaponID` | Kill events. The asset ID of the item that made the kill, read from the kill packet: the same IDs as a player's `loadout` fields. It can be another player's deployed gadget. Omitted when the kill packet has no weapon field. |
+| `weaponSlot` | Kill events. `primary`, `secondary`, `gadget` or `ability`: the slot `weaponID` has in the loadout of the player the kill packet names. On Y10S4+ that player can differ from `username`, which can be corrected from the scoreboard to the player who downed the target. Omitted when the ID is in none of that player's slots. |
 | `DBNO` events | Y10S4+. `target` is the downed player. `username` is the player credited with the kill if the downed player died, otherwise empty (the replay does not say who downed a player who was revived or bled out). |
 | `Revive` events | Y10S4+. `target` is the revived player. `username` is the reviver, if one could be found. |
 
 On Y10S4+ replays, the defuser planter/disabler is read from the defuser packets; if that player cannot be resolved, they are inferred from the +100 score bonus or the last player alive. A `DefuserDisableComplete` is added when defense wins a round after a plant without one being recorded. On Y10S4+ replays, the killer of a kill can be corrected from the scoreboard when the kill feed and the scoreboard disagree. Downs and revives are read from each player's health state; the reviver is inferred from the +50 score bonus of a teammate within 3 seconds of the revive.
+
+### Round warnings
+A round can carry `warnings` when a part of the replay could not be read, for example because a newer game build moved a marker the parser looks for. The packet that failed is skipped and the rest of the round is still read; each entry says what may be missing: `listener` (the parser function), `pattern` (the bytes it looks for), `error`, `count` (how many packets failed that way) and `firstOffset` (where the first failing match starts in the decompressed round). The key is absent when nothing failed.
 
 ## Importing a .rec file
 ```go
@@ -128,6 +145,7 @@ func main() {
 	if err := r.Read(); !dissect.Ok(err) {
 		log.Fatal(err)
 	}
+	// r.Warnings lists listeners that failed; the rest of the round was read
 	print(r.Header.GameVersion) // Y11S1_Alpha03
 }
 ```
@@ -168,6 +186,9 @@ Whole matches that are too large to commit can be checked with `TestAcceptance_R
 ```bash
 R6_DISSECT_REPLAY_DIRS=/path/to/Match-A:/path/to/Match-B go test ./dissect/test -run TestAcceptance -v
 ```
+
+### Acceptance on real replays
+Two opt-in checks run on replays that are not committed and are skipped when their variable is unset, which is how CI runs them. `R6_DISSECT_CORPUS` is a directory of match folders for the match-level `TestAcceptance_Matches`. `R6_DISSECT_REPLAY_DIRS` is for the round-level `TestAcceptance_Replays`. See [scripts/corpus/README.md](scripts/corpus/README.md) for building the Y11S1 fork corpus.
 
 ## Contributing
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how pull requests are reviewed and merged.

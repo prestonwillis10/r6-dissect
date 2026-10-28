@@ -218,6 +218,22 @@ func readY7Time(r *Reader) error {
 	return nil
 }
 
+// headerWinner returns the index of the only team whose header score rose this
+// round, or -1 when neither score (or both) rose: the round was abandoned,
+// remade, or recorded without its end.
+func (r *Reader) headerWinner() int {
+	winner := -1
+	for i, team := range r.Header.Teams {
+		if team.StartingScore < team.Score {
+			if winner >= 0 {
+				return -1
+			}
+			winner = i
+		}
+	}
+	return winner
+}
+
 func (r *Reader) roundEnd() {
 	log.Debug().Msg("round_end")
 
@@ -234,10 +250,12 @@ func (r *Reader) roundEnd() {
 		roles[p.TeamIndex] = r.Header.Teams[p.TeamIndex].Role
 	}
 
+	decided := true
 	if r.Header.CodeVersion >= Y9S4 {
-		team0Won := r.Header.Teams[0].StartingScore < r.Header.Teams[0].Score
-		r.Header.Teams[0].Won = team0Won
-		r.Header.Teams[1].Won = !team0Won
+		winner := r.headerWinner()
+		decided = winner >= 0
+		r.Header.Teams[0].Won = winner == 0
+		r.Header.Teams[1].Won = winner == 1
 	}
 
 	if r.Header.CodeVersion >= Y10S4 {
@@ -265,6 +283,9 @@ func (r *Reader) roundEnd() {
 			disabler = r.PlayerIndexByUsername(u.Username)
 		case DefuserDisableComplete:
 			if r.Header.CodeVersion >= Y9S4 {
+				if !decided {
+					continue
+				}
 				winningTeam := 0
 				if r.Header.Teams[1].Won {
 					winningTeam = 1
@@ -290,6 +311,10 @@ func (r *Reader) roundEnd() {
 
 	// since Y9S4, the header tells us who won. Only the win condition needs to be determined.
 	if r.Header.CodeVersion >= Y9S4 {
+		if !decided {
+			log.Debug().Msg("round has no result: neither header score moved")
+			return
+		}
 		winner := 0
 		if r.Header.Teams[1].Won {
 			winner = 1

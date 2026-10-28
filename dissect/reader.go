@@ -3,12 +3,14 @@ package dissect
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"runtime"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/klauspost/compress/zstd"
@@ -33,12 +35,14 @@ type Reader struct {
 	defuserRun             defuserRun          // Y10S4+: the plant/disable action the defuser timer currently belongs to
 	readPartial            bool                // reads up to the player info packets
 	playersRead            int
+	markers                *playerMarkers      // player record tags of this round, see playerMarkers
 	lastScoreboardKiller   string              // Y10S4+: player whose scoreboard kill counter increased last, until the next kill packet
 	pendingSBIDs           [][4]byte           // Y10S4+: sbIDs in header-entry order for deferred mapping
 	readPlayerOrder        []int               // Y10S4+: player indices in readPlayer order
 	scoreboardIDToPlayer   map[[4]byte]int     // Y10S4+: maps scoreboard entry ID to player index
 	scoreboardInitialKills map[[4]byte]uint32  // Y10S4+: cumulative kills at round start per sbID
 	scoreboardFinalKills   map[int]uint32      // Y10S4+: latest cumulative kills seen per player index
+	scoreboardEntityOwner  map[[4]byte]uint64  // Y10S4+: scoreboard entity ID -> owning player object handle
 	pendingDefuserPlantIdx int                 // Y10S4+: index into MatchFeedback for DefuserPlantComplete/DisableComplete with unknown player (-1 = none)
 	pendingDefuserIsPlant  bool                // Y10S4+: true if pending event is plant (attacker), false if disable (defender)
 	lastPlayerScores       map[int]uint32      // Y10S4+: last known score per player index (for detecting +100 plant/disable bonus)
@@ -46,9 +50,11 @@ type Reader struct {
 	healthToSlot           map[[4]byte][4]byte // Y10S4+: maps a health component entity ID to its player slot entity ID
 	healthState            map[int]uint32      // Y10S4+: last health state per player index
 	healthTransitions      []healthTransition  // Y10S4+: health state changes of all players
+	healthSamples          []healthSample      // Y10S4+: current health values of all health components, in read order
 	scoreRevives           []scoreRevive       // Y10S4+: +50 score updates, matched with revives
 	Header                 Header              `json:"header"`
 	MatchFeedback          []MatchUpdate       `json:"matchFeedback"`
+	Warnings               []ReadWarning       `json:"warnings,omitempty"` // listeners that failed, see ReadWarning
 	Scoreboard             Scoreboard
 }
 
@@ -68,10 +74,12 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 		scoreboardIDToPlayer:   make(map[[4]byte]int),
 		scoreboardInitialKills: make(map[[4]byte]uint32),
 		scoreboardFinalKills:   make(map[int]uint32),
+		scoreboardEntityOwner:  make(map[[4]byte]uint64),
 		lastPlayerScores:       make(map[int]uint32),
 		defuserPawnToSlot:      make(map[[4]byte][4]byte),
 		healthToSlot:           make(map[[4]byte][4]byte),
 		healthState:            make(map[int]uint32),
+		MatchFeedback:          make([]MatchUpdate, 0),
 	}
 	if chunkedCompression {
 		if err = r.readChunkedData(br); err != nil {
@@ -96,8 +104,10 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 	r.Listen([]byte{0x22, 0xA9, 0xC8, 0x58, 0xD9}, readDefuserTimer)
 	if r.Header.CodeVersion >= Y10S4 {
 		r.Listen(defuserPawnIndicator, readDefuserPawn)
+		r.Listen(scoreboardEntityField, readScoreboardEntity)
 		r.Listen(healthLinkIndicator, readHealthLink)
 		r.Listen(healthStateIndicator, readHealthState)
+		r.Listen(healthValueIndicator, readHealthValue)
 	}
 	r.Listen([]byte{0xEC, 0xDA, 0x4F, 0x80}, readScoreboardScore)
 	r.Listen([]byte{0x4D, 0x73, 0x7F, 0x9E}, readScoreboardAssists)
@@ -125,11 +135,16 @@ func (r *Reader) readChunkedData(genericReader io.Reader) error {
 	}
 	log.Debug().Msg("decompressing data")
 	zstdMagic := []byte{0x28, 0xB5, 0x2F, 0xFD}
-	zstdReader, _ := zstd.NewReader(nil)
+	// Sections are small, so the synchronous decoder is as fast and allocates far less.
+	zstdReader, err := zstd.NewReader(nil, zstd.WithDecoderConcurrency(1))
+	if err != nil {
+		return err
+	}
+	defer zstdReader.Close()
 	memoryReader := bytes.NewReader(nil)
 	patternIndex := 0
 	sections := 0
-	data := make([]byte, 0)
+	data := appendWriter{b: make([]byte, 0, decompressedSizeHint(r.b[r.offset:]))}
 	for !errors.Is(err, io.EOF) {
 		for patternIndex != 4 {
 			b, scanErr := r.Bytes(1)
@@ -156,14 +171,14 @@ func (r *Reader) readChunkedData(genericReader io.Reader) error {
 		if err = zstdReader.Reset(&tempReader); err != nil {
 			return err
 		}
-		decompressed, err := io.ReadAll(zstdReader)
-		if err != nil && !(len(decompressed) > 0 && errors.Is(err, zstd.ErrMagicMismatch)) {
+		// decode straight onto the end of data instead of into a new buffer per section
+		n, err := zstdReader.WriteTo(&data)
+		if err != nil && !(n > 0 && errors.Is(err, zstd.ErrMagicMismatch)) {
 			return err
 		}
-		data = append(data, decompressed...)
 		r.offset += tempReader.n
 	}
-	r.b = data
+	r.b = data.b
 	r.offset = 0
 	log.Debug().Int("zstd_sections", sections).Send()
 	return nil
@@ -174,6 +189,7 @@ func (r *Reader) readNonChunkedData(genericReader io.Reader) error {
 	if err != nil {
 		return err
 	}
+	defer zstdReader.Close()
 	decompressed, err := io.ReadAll(zstdReader)
 	if err != nil && !(len(decompressed) > 0 && errors.Is(err, zstd.ErrMagicMismatch)) {
 		return err
@@ -188,102 +204,74 @@ func (r *Reader) readNonChunkedData(genericReader io.Reader) error {
 }
 
 type match struct {
-	offset        int
-	listenerIndex int
+	offset        int // index of the last byte of the pattern; listeners start at offset+1
+	listenerIndex int // index into r.queries / r.listeners
 }
 
-func (r *Reader) worker(start int, end int, wg *sync.WaitGroup, matches chan<- match) {
-	defer wg.Done()
-	// indexes[j] is the number of bytes of query j matched so far. Only queries
-	// with a partial match (active) or whose first byte matches the current byte
-	// are compared, which is equivalent to comparing every query at every byte.
-	indexes := make([]int, len(r.queries))
-	var startsWith [256][]int
+// findQueries returns every occurrence of every query in r.b[start:end],
+// ordered by offset and then by listener index (registration order).
+//
+// Each query is searched for on its own with bytes.Index over the whole
+// range, so an occurrence is never lost to a block split or to a partial
+// match of the same query that started a few bytes earlier. After an
+// occurrence the search resumes past its last byte, so occurrences of one
+// query never overlap. An empty query matches nothing.
+func (r *Reader) findQueries(start, end int) []match {
+	if start < 0 || end > len(r.b) || start >= end {
+		return nil
+	}
+	b := r.b[start:end]
+	found := make([][]match, len(r.queries))
+	var wg sync.WaitGroup
 	for j, query := range r.queries {
-		startsWith[query[0]] = append(startsWith[query[0]], j)
-	}
-	active := make([]int, 0, len(r.queries))
-	next := make([]int, 0, len(r.queries))
-	started := make([]int, 0, len(r.queries))
-	log.Debug().Int("start", start).Int("end", end).Msg("worker")
-	for i := start; i <= end; i++ {
-		c := r.b[i]
-		started = started[:0]
-		for _, j := range startsWith[c] {
-			if indexes[j] == 0 {
-				started = append(started, j)
-			}
+		if len(query) == 0 {
+			continue
 		}
-		next = next[:0]
-		for _, j := range active {
-			query := r.queries[j]
-			if c == query[indexes[j]] {
-				indexes[j]++
-				if indexes[j] == len(query) {
-					indexes[j] = 0
-					matches <- match{i, j}
-				} else {
-					next = append(next, j)
+		wg.Add(1)
+		go func(j int, query []byte) {
+			defer wg.Done()
+			var out []match
+			for i := 0; i <= len(b)-len(query); {
+				k := bytes.Index(b[i:], query)
+				if k < 0 {
+					break
 				}
-			} else {
-				indexes[j] = 0
+				i += k + len(query)
+				out = append(out, match{offset: start + i - 1, listenerIndex: j})
 			}
-		}
-		for _, j := range started {
-			if len(r.queries[j]) == 1 {
-				matches <- match{i, j}
-				continue
-			}
-			indexes[j] = 1
-			next = append(next, j)
-		}
-		active, next = next, active
+			found[j] = out
+		}(j, query)
 	}
+	wg.Wait()
+	matches := slices.Concat(found...)
+	slices.SortFunc(matches, func(a, b match) int {
+		return cmp.Or(cmp.Compare(a.offset, b.offset), cmp.Compare(a.listenerIndex, b.listenerIndex))
+	})
+	return matches
 }
 
 // Read continues reading the replay past the header until the EOF.
-func (r *Reader) Read() (err error) {
-	numWorkers := 5
-	var wg sync.WaitGroup
-	channel := make(chan match, 300)
-	start := r.offset
+//
+// It returns an error only when the replay has no data after its header
+// (ErrNoReplayData). A listener that fails is skipped for that one packet and
+// recorded in Warnings; every later listener and the end-of-round work still run.
+func (r *Reader) Read() error {
+	if r.offset >= len(r.b) {
+		// nothing after the header to scan
+		return ErrNoReplayData
+	}
 	end := len(r.b)
 	if r.readPartial {
 		end /= 3
 	}
-	blockSize := int(math.Floor(float64(end-start) / float64(numWorkers)))
-	log.Debug().Int("workers", numWorkers).Int("blockSize", blockSize).Send()
-	wg.Add(numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		blockStart := r.offset + (i * blockSize)
-		blockEnd := blockStart + blockSize
-		if i > 0 {
-			blockStart += 1
-		}
-		if i == numWorkers-1 {
-			blockEnd = end - 1
-		}
-		go r.worker(blockStart, blockEnd, &wg, channel)
-	}
-	go func() {
-		wg.Wait()
-		close(channel)
-	}()
-	matches := make([]match, 0)
-	log.Debug().Msg("reading from channel")
-	for match := range channel {
-		matches = append(matches, match)
-	}
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].offset < matches[j].offset
-	})
+	matches := r.findQueries(r.offset, end)
 	log.Debug().Int("matches", len(matches)).Msg("calling listeners")
 	for _, entry := range matches {
 		for _, listener := range r.listeners[entry.listenerIndex] {
 			r.offset = entry.offset + 1
 			n := len(r.MatchFeedback)
-			if err = listener(r); err != nil {
-				return
+			if err := listener(r); err != nil {
+				r.listenerFailed(entry.listenerIndex, listener, entry.offset, err)
 			}
 			r.stampNew(n)
 		}
@@ -299,9 +287,13 @@ func (r *Reader) Read() (err error) {
 		r.backfillLeadingUpdates()
 		r.relabelPostPlantWithoutPlant()
 		r.applyLoadouts()
+		// after applyLoadouts, which it reads
+		r.classifyKillWeapons()
 	}
+	r.nameUnknownSwapOperators()
+	r.warnUnknownOperators()
 	r.b = nil
-	return err
+	return nil
 }
 
 // ReadPartial continues reading the replay past the header until the full player list is read.
@@ -316,7 +308,8 @@ func (r *Reader) ReadPartial() error {
 }
 
 // Listen registers a callback to be run during Read whenever
-// the pattern is found.
+// the pattern is found. If the callback returns an error, Read records it in
+// Warnings and goes on; what the callback changed before the error is kept.
 func (r *Reader) Listen(pattern []byte, callback func(r *Reader) error) {
 	var i int
 	for i = 0; i < len(r.queries); i++ {
@@ -329,33 +322,28 @@ func (r *Reader) Listen(pattern []byte, callback func(r *Reader) error) {
 	r.listeners = append(r.listeners, []func(reader *Reader) error{callback})
 }
 
-// Seek skips through the replay until the pattern is found.
+// Seek skips through the replay until the pattern is found and leaves the
+// offset just past it. If the pattern is not found, it returns io.EOF.
+//
+// Like a walk over r.Bytes(1), which reports io.EOF on reaching the last byte
+// of r.b, Seek ignores a match that ends on that byte. On a miss the offset
+// moves to the end of r.b, or one byte on if it was already there.
 func (r *Reader) Seek(pattern []byte) error {
 	start := r.offset
-	i := 0
-	for {
-		b, err := r.Bytes(1)
-		if err != nil {
-			if Ok(err) {
-				pc, _, _, ok := runtime.Caller(1)
-				details := runtime.FuncForPC(pc)
-				if ok && details != nil {
-					log.Warn().Int("bytes", r.offset-start).Interface("func", details.Name()).Msg("large seek")
-				} else {
-					log.Warn().Int("bytes", r.offset-start).Msg("large seek")
-				}
-			}
-			return err
-		}
-		if b[0] != pattern[i] {
-			i = 0
-			continue
-		}
-		i++
-		if i == len(pattern) {
+	if start < len(r.b) {
+		if k := bytes.Index(r.b[start:len(r.b)-1], pattern); k >= 0 {
+			r.offset = start + k + len(pattern)
 			return nil
 		}
 	}
+	r.offset = max(len(r.b), start+1)
+	e := log.Warn().Int("bytes", r.offset-start).Str("pattern", fmt.Sprintf("% X", pattern))
+	pc, _, _, ok := runtime.Caller(1)
+	if details := runtime.FuncForPC(pc); ok && details != nil {
+		e = e.Interface("func", details.Name())
+	}
+	e.Msg("large seek")
+	return io.EOF
 }
 
 // Skip increases the replay offset by n bytes.
