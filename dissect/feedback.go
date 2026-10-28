@@ -91,7 +91,7 @@ var killWeaponField = []byte{0x22, 0xF8, 0x6C, 0xDD, 0x65, 0x08}
 // an unknown packet layout cannot abort the round.
 func peekKillWeapon(r *Reader) uint64 {
 	value := r.offset + len(killWeaponField)
-	if r.offset < 0 || value+8 > len(r.b) || !bytes.Equal(r.b[r.offset:value], killWeaponField) {
+	if value+8 > len(r.b) || !bytes.Equal(r.b[r.offset:value], killWeaponField) {
 		return 0
 	}
 	return binary.LittleEndian.Uint64(r.b[value : value+8])

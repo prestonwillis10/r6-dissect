@@ -338,7 +338,6 @@ func (r *Reader) classifyKillWeapons() {
 		if killer == "" {
 			killer = u.Username
 		}
-		u.WeaponSlot = ""
 		if idx := r.PlayerIndexByUsername(killer); idx >= 0 {
 			u.WeaponSlot = r.Header.Players[idx].Loadout.Slot(u.WeaponID)
 		}
