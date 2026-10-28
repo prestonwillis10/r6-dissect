@@ -127,6 +127,7 @@ worktree: /home/prest/r6-dissect-worktrees/rev-49-r2 branch=(detached 3724f63) f
 worktree: /home/prest/r6-dissect-worktrees/rev-51 branch=(detached a47e4e6) for=rev-51
 worktree: /home/prest/r6-dissect-worktrees/rev-51-r2 branch=(detached c802a5d) for=rev-51 round 2
 worktree: /home/prest/r6-dissect-worktrees/rev-52 branch=(detached 9618bb6) for=rev-52
+worktree: /home/prest/r6-dissect-worktrees/rev-53 branch=(detached 230c43d) for=rev-53 (landing)
 
 ## Event log
 
@@ -198,6 +199,9 @@ worktree: /home/prest/r6-dissect-worktrees/rev-52 branch=(detached 9618bb6) for=
 - 2026-10-28 S35 → PR #52 (`9618bb6`; preflight citation FAIL — two lines under one anchor — fixed in the body → 0 FAIL). No output change on the real replays (over/under counts per round are 0/0 or 1/1 everywhere after #50); PR #12's sort folded in, credited to @ElyasYassin.
 - 2026-10-28 #52 validated on `6491fa7` (race `dissect/test 87.907s`, `exports 3.912s`; no golden churn; corpus unchanged). Awaiting rev-52.
 - 2026-10-28 rev-52 round 1 MERGE at `9618bb6` (F1 ADVISORY pre-existing: the zip path at `dissect/scoreboard.go` maps two sbIDs to one player when `readPlayerOrder` repeats one, so `expectedKills` depends on map order; not observed, 0 of 88 rounds). Second guard site and the M03d/M04a–c equivalence proved by a 200000-round differential; 3-over/3-under pass-order case correct at head. → merged #52. All slot PRs merged.
+- 2026-10-28 Stage 6: main has no commit the track lacks (merge-base `7d37745`); landing gates at `d66418b` green (race `dissect/test 195.207s`, `exports 5.569s`; corpus: candidate-6 entry only; user-match acceptance 5 dirs PASS). Landing PR #53 opened at `230c43d`; closing refs = 17,18,19,23–35 (16); preflight 0 FAIL; GitHub CI armed (`ci-settle.sh`); fresh integration reviewer rev-53 dispatched.
+- 2026-10-28 GitHub CI on #53 head `230c43d`: run 40646286918 SETTLED PASS (lint, test 1.26, test 1.27, vulncheck; 305s). Body updated; full preflight (with CI) 0 FAIL.
+- 2026-10-28 rev-53 (landing) round 1 MERGE-AFTER-MECHANICAL: F1 EVIDENCE `Closes #34` premature (its acceptance needs a real 9734089 match; `research` label) → `Refs #34`; F2 MECHANICAL CLASS README lacks `skippedRounds`, the `roleName` operator naming and `matchFeedback: []`; F3 MECHANICAL CLASS (#39 × #49) the real-replay acceptance tests ignore `warnings`; A1 stale corpus docs, A2 `Closes #25` ends Task 5 tracking (desk's call; candidate 8), A3 Summary #26 row overstates the remap, A4 the round JSON shape is copied by hand on 4 write paths (PR #10's carry must include `exports/exports.go`). Applied by the orchestrator on the track: README + corpus README, `kindWarnings` + `TestCheckMatchJSON_Warnings` (mutant red) + a `Warnings` check in `TestAcceptance_Replays`; body: `Refs #34`, #34 row marked simulated, #26 row narrowed, observation 4 and candidate 20 for A4.
 
 ## Findings
 
@@ -235,6 +239,13 @@ finding: PR=49 round=2 tier=ADVISORY origin=PRE-EXISTING kind=sibling author-cat
 finding: PR=51 round=1 tier=MECHANICAL origin=IN-DIFF kind=prose author-catchable=yes
 finding: PR=51 round=1 tier=ADVISORY origin=IN-DIFF kind=vacuous-test author-catchable=yes
 finding: PR=52 round=1 tier=ADVISORY origin=PRE-EXISTING kind=other author-catchable=no
+finding: PR=53 round=1 tier=MECHANICAL origin=EVIDENCE kind=false-claim author-catchable=yes
+finding: PR=53 round=1 tier=MECHANICAL origin=IN-DIFF kind=prose author-catchable=yes
+finding: PR=53 round=1 tier=MECHANICAL origin=IN-DIFF kind=vacuous-test author-catchable=no
+finding: PR=53 round=1 tier=ADVISORY origin=IN-DIFF kind=prose author-catchable=yes
+finding: PR=53 round=1 tier=ADVISORY origin=EVIDENCE kind=other author-catchable=no
+finding: PR=53 round=1 tier=ADVISORY origin=EVIDENCE kind=false-claim author-catchable=yes
+finding: PR=53 round=1 tier=ADVISORY origin=PRE-EXISTING kind=sibling author-catchable=no
 
 ## Candidates
 
@@ -261,6 +272,7 @@ finding: PR=52 round=1 tier=ADVISORY origin=PRE-EXISTING kind=other author-catch
 17. **export: the XLSX export has no `damageTaken` column** — PR #48 candidate; the JSON has it (`dissect/match.go`). Acceptance: the match XLSX carries the column. Verified-against: 8e883c8.
 18. **scoreboard: the zip fallback can map two scoreboard IDs to one player** — rev-52 F1. `dissect/scoreboard.go` zip loop (the one unguarded writer of `r.scoreboardIDToPlayer[...] =`, no `!mappedPlayers[idx]` check) when `readPlayerOrder` repeats a player; reconcile's `expectedKills` then depends on map order (constructed: `map[A>E :46 B>E :354]` over 400 runs). Not observed (`manyToOne=0` in 88 reconciled rounds; the zip path never ran). Acceptance: the constructed state gives one outcome over 400 runs. Verified-against: 9618bb6.
 19. **R6Stats: ingest the new parser keys** — PR #48 / #51 / #49 follow-ups. `damageTaken` (`_stats_row`), `weaponID`/`weaponSlot` (`RoundEvent` columns + migration), round `warnings` (with candidate 2's `skippedRounds`) as upload warnings. Needs a vendor bump. Acceptance: an ingest test per key. Verified-against: R6Stats c350dee / r6-dissect 9618bb6.
+20. **JSON: the round shape is copied by hand on four write paths with no test that they stay equal** — rev-53 A4 (landing). `git grep -n 'json:"matchFeedback"' -- '*.go' ':!*_test.go'` lists `dissect/match.go`, `exports/exports.go`, `main.go` and `dissect/reader.go`. The lane kept them byte-equal (rev-53: FFI and CLI byte-equal single 42/42, match 5/5); PR #10 adds `TimelineError` to two of them. Acceptance: one test that marshals a round through every path and compares the bytes. Verified-against: 230c43d.
 
 ## Observations
 
@@ -269,7 +281,7 @@ Unreproduced or not acted on; never filed.
 1. **Map IDs unconfirmed** (PR #37): the four new map IDs are unconfirmed by any replay (plan Risks), and the unknown-map warning in `readHeader` is exercised only by a mutant.
 2. **Silent partial rounds** (PR #38): a cut exactly at a zstd frame boundary is still undetected (plan Risks).
 3. **`ReadPartial` range unpinned** (PR #45): with `end /= 3` removed under `readPartial`, `TestReader_ReadPartial` stays green; the line predates the lane.
-4. **PR #10 carry** (PR #49): when `track/rec-timeline` lands, drop its `settleTimelineOnStop` and `return` from the listener loop (`Read` no longer has a named error result), keep `buildTimeline` in the end-of-round block, add `Warnings` after `TimelineError` in `dissect/match.go` `round` and `main.go` `writeRound`, replace the README sentence about `round read stopped`, and add the plan's `TestTimeline_ListenerFailureStillBuildsTimeline`.
+4. **PR #10 carry** (PR #49): when `track/rec-timeline` lands, drop its `settleTimelineOnStop` and `return` from the listener loop (`Read` no longer has a named error result), keep `buildTimeline` in the end-of-round block, add `Warnings` after `TimelineError` in `dissect/match.go` `round` and `main.go` `writeRound`, and give `exports/exports.go`'s single-round output the same `TimelineError` and `Warnings` keys (rev-53 A4: PR #10 adds `TimelineError` to match.go and main.go only), replace the README sentence about `round read stopped`, and add the plan's `TestTimeline_ListenerFailureStillBuildsTimeline`.
 5. **Pre-Y10S4 drops** (PR #50): Y8S1 `quick_1` and Y8S2 `attacker_recorder_site_test` remove a non-last header-only player in `deriveTeamRoles`; the pre-Y10S4 scoreboard path resolves dissect IDs, so no golden changed.
 6. **`+4` mapping kept across calls** (PR #50): a `+4` mapping made before a linked sbID's owner is read would keep that player; not seen.
 7. **Weapon gaps** (PR #51): `ReadPartial` does not run `applyLoadouts`, so a partial read's Kill has `weaponID` but no `weaponSlot`; asset `70077334926` (2 kills) is in no loadout, probably melee, unclassified.
