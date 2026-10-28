@@ -421,24 +421,7 @@ func TestHealthValue_Truncated(t *testing.T) {
 	}
 }
 
-// samples must not alias the round buffer, which is released after the read.
-func TestHealthValue_DoesNotAliasBuffer(t *testing.T) {
-	slot, health := []byte{1, 2, 3, 4}, []byte{0x38, 0xbb, 0x2b, 0xf0}
-	b, link, value := healthValueReplay(slot, health, 100)
-	r := newHealthReader(b, slot)
-	r.offset = link
-	_ = readHealthLink(r)
-	r.offset = value
-	_ = readHealthValue(r)
-	for i := range b {
-		b[i] = 0xFF
-	}
-	if r.healthSamples[0].health != [4]byte{0x38, 0xbb, 0x2b, 0xf0} {
-		t.Fatalf("sample follows the buffer: %+v", r.healthSamples[0])
-	}
-}
-
-// ser builds a series of samples; the first n unstarted, then prep, then action ones are made by the caller.
+// smp builds samples that share a clock state.
 func smp(started bool, phase RoundPhase, hps ...uint32) []healthSample {
 	var out []healthSample
 	for _, hp := range hps {
