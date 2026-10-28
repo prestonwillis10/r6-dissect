@@ -279,6 +279,8 @@ func (r *Reader) Read() (err error) {
 		r.relabelPostPlantWithoutPlant()
 		r.applyLoadouts()
 	}
+	r.nameUnknownSwapOperators()
+	r.warnUnknownOperators()
 	r.b = nil
 	return err
 }
