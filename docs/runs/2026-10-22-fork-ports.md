@@ -59,6 +59,7 @@ The graph follows the shared files. `dissect/reader.go` is the hotspot, edited b
 | W3 | S31 | #31 | 03 | `Read`'s listener loop, `Seek` fast path, `Warnings` (`warning.go`), `round.warnings` in `Data` | S33 |
 | W3 | S18 | #18 | 08 | `scoreboardRow` + the four score/assist writers, `deriveTeamRoles` row filter | S19, S17, S34 |
 | W4 | S26 | #26 | 09 | `ensureScoreboardMapping` / the entity-link listener | S18 |
+| W5 | S35 | #35 | 11 (Part B, 11c) | the reconcile pass order in `reconcileKillsFromScoreboard`; credits closed PR #12's sort and its `break` note | S26 |
 | W4 | S28 | #28 | 11 (Part A) | `MatchUpdate` weapon fields (`feedback.go`), `classifyKillWeapons` at the end of `Read` | S31 |
 
 ## Worktree ledger
@@ -79,6 +80,14 @@ worktree: /home/prest/r6-dissect-worktrees/rev-40 branch=(detached d21b0c4) for=
 worktree: /home/prest/r6-dissect-worktrees/ci-main-only branch=ci/pr-into-main-only for=PR #41
 worktree: /home/prest/r6-dissect-worktrees/rev-40-r2 branch=(detached 3d4ae8e) for=rev-40 round 2
 worktree: /home/prest/r6-dissect-worktrees/rev-3-b-r4 branch=(detached 2fbc240) for=rev-3-b round 4
+worktree: /home/prest/r6-dissect-worktrees/fp-s33 branch=fp/s33-pattern-scan for=S33
+worktree: /home/prest/r6-dissect-worktrees/fp-s34 branch=fp/s34-alpha03-markers for=S34
+worktree: /home/prest/r6-dissect-worktrees/fp-s19 branch=fp/s19-undecided-round for=S19
+worktree: /home/prest/r6-dissect-worktrees/fp-s30 branch=fp/s30-feedback-array for=S30
+worktree: /home/prest/r6-dissect-worktrees/rev-42 branch=(detached 6be291d) for=rev-42
+worktree: /home/prest/r6-dissect-worktrees/rev-43 branch=(detached 6b3617d) for=rev-43
+worktree: /home/prest/r6-dissect-worktrees/rev-44 branch=(detached 138274f) for=rev-44
+worktree: /home/prest/r6-dissect-worktrees/rev-45 branch=(detached a2246f8) for=rev-45
 
 ## Event log
 
@@ -110,9 +119,20 @@ worktree: /home/prest/r6-dissect-worktrees/rev-3-b-r4 branch=(detached 2fbc240) 
 - 2026-10-27 PR #41 merged into main (`b9edf5a`); main merged into the track (`22822c7`) so slot PRs no longer start CI (rev-41 F1).
 - 2026-10-27 PR #40: rev-40 round 1 MERGE-AFTER-MECHANICAL (F1 pin guard Y8S2-only) → patch applied (`3d4ae8e`, slotID mutant fails the Y11S2 subtest); local CI on `b81ade4`+`3d4ae8e` green (race `dissect/test 73.713s`); round 2 MERGE-WITH-NITS (stale evidence prose fixed, `1d310a8`) → merged into the track (`74de332`). **Wave 1 complete: #37, #38, #39, #40.**
 - 2026-10-27 PR #3: round-3 fixes pushed (`f69f093`, `2fbc240`); local CI + GitHub CI green; strict preflight 0 FAIL; rev-3-b round 4 charged.
+- 2026-10-27 rev-3-b round 4 MERGE at `2fbc240` → **PR #3 merged into main** (`7d37745`; operator approval for MERGE verdicts; main had not moved past `b9edf5a`). Main merged into the track (`24024f6`): no conflicts; local CI green (race `dissect/test 70.915s`); PR #3's intended golden diffs; acceptance on the user's 5 matches `rounds 42, DBNO 73 (69 credited), Revive 3 (2 credited)`; corpus: the same 5 expected failures, 0 unexpected. #25 and #27 unblocked.
+- 2026-10-27 W2 dispatched from `24024f6`: S33 (#33, Opus), S34 (#34), S19 (#19; third-party fixture replaced by a synthetic test; must not edit `knownMatchFailures`), S30 (#30; owns the `knownMatchFailures` edits this wave). Slots run `[skip ci]` pushes and the memory rule.
+- 2026-10-27 S30 → PR #42 (`6be291d`; preflight mutation-proof FAIL fixed by pasting the slot log's fenced mutant block); S19 → PR #43 (`6b3617d`; the 21916 score-drop entry is NOT #19's: round 5 is decided 2→3 with a missing scoreboard — relabel at reconciliation); S34 → PR #44 (`138274f`; citation `player.go:10` → `:11` fixed). Offline preflights 0 FAIL. rev-42/43/44 dispatched (Opus). S33 still implementing.
+- 2026-10-27 rev-42 MERGE → local CI on #42's head green (race `dissect/test 70.769s`) → #42 merged (`da2264b`). rev-44 MERGE-WITH-NITS (N2 test comment, N4 stale `:63` cite → `9bfa55a`, `b0bd37b`, body patched). rev-43 MERGE-WITH-NITS (F2 README scope → `e307b07`; F3 → candidate 6). S33 → PR #45 (`a2246f8`; `Seek` also rewritten on `bytes.Index`; benchmark scan 80→17 ms solid_snake); preflight 0 FAIL; rev-45 dispatched.
+- 2026-10-28 validation-tree incident: the `val` worktree still held #40's uncommitted validation merge, so the first #44 run executed on a stale tree (detected from the `VAL` header, discarded). `lane/val.sh` now refuses a dirty or mid-merge tree and always aborts its merge.
+- 2026-10-28 W2 merges, each after `lane/val.sh` on the current track: #44 (`43a747a`, race `dissect/test 65.064s`), #43 (`9af84a4`, `61.850s`), #45 (`999e2af`, `44.347s` — the new scanner). Corpus expected failures unchanged throughout. **Wave 2 complete: #42, #43, #44, #45.**
+- 2026-10-28 reconciliation (`ef23785`): the 21916 `score-drop` entry relabelled from #19 to candidate 6 (snapshot rows dropped), with a comment.
 
 ## Findings
 
+finding: PR=42 round=1 tier=ADVISORY origin=EVIDENCE kind=other author-catchable=no
+finding: PR=43 round=1 tier=ADVISORY origin=IN-DIFF kind=prose author-catchable=yes (README scope)
+finding: PR=44 round=1 tier=ADVISORY origin=EVIDENCE kind=prose author-catchable=yes (stale cite)
+finding: PR=45 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=no (observations only)
 finding: PR=39 round=2 tier=ADVISORY origin=EVIDENCE kind=prose author-catchable=yes
 finding: PR=40 round=1 tier=MECHANICAL origin=IN-DIFF kind=vacuous-test author-catchable=yes (pin guard never ran Y10S4+ listeners)
 finding: PR=40 round=2 tier=ADVISORY origin=EVIDENCE kind=prose author-catchable=yes
@@ -134,5 +154,7 @@ finding: PR=38 round=1 tier=ADVISORY origin=IN-DIFF kind=other author-catchable=
 
 4. **test: `TestAcceptance_Matches` matches expected failures by kind only, and the flaky entry can never turn red** — from PR #39 rev-39 F2+F3. A second finding of the same kind in a known folder stays green (`compareToKnown`); the 47572 `flaky: true` nondeterminism entry stays green after #26 lands, contrary to `scripts/corpus/README.md` ("When a fix lands, the test goes red for that entry"). Acceptance: adding a second null round to a known folder's expected output, or fixing the 47572 nondeterminism, turns the test red. Verified-against: 1fea036.
 5. **scripts: `fetch.sh` follows symlinks already in the output dir and cannot recover blobs that exist only in a fork's history** — from PR #39 rev-39 F4+F5. Probe: a symlink `out/<folder>` → `victim/` received the file; `--depth=1` reported a history-only blob `missing`. `scripts/corpus/README.md` overstates force-push safety. Acceptance: fetch.sh refuses a symlinked target path and fetches full history for the pinned refs (or the README says tips only). Verified-against: 1fea036.
+
+6. **scoreboard: the Y10S4+ score reader drops round-start snapshot rows (marker byte `0xa3`)** — from PR #43 rev-43 F3. In nicktstewart match3 R05 (21916), Mori.CU's 930 appears once, in the round-start snapshot at offset 20630 with byte −18 = `0xa3`; `scoreboardEntryHasMarker` requires `0x23`, so it is dropped and the player's cumulative score reads 930 → 0 in a round with no score change. Not owned by #17–#35 (#26 scopes snapshot detection out). The corpus entry `knownMatchFailures["nick-Match-2026-03-08_19-55-32-21916"]` `score-drop` is mislabelled `#19`; relabel to this candidate at reconciliation. Acceptance: the corpus test's 21916 folder passes the score-drop invariant. Verified-against: 6b3617d.
 
 ## Observations
