@@ -94,6 +94,20 @@ func TestRead_RepeatedPrefixRun(t *testing.T) {
 	}
 }
 
+func TestRead_MatchesRunInOffsetOrder(t *testing.T) {
+	first := []byte{0xA1, 0xB2, 0xC3, 0xD4}
+	second := []byte{0xE5, 0xF6, 0x07, 0x18}
+	// The listener registered second has the earlier match, so it runs first.
+	b := plant(1000, 500, first)
+	copy(b[10:], second)
+	copy(b[900:], second)
+	got := scanHits(t, b, first, second)
+	want := []hit{{1, 14}, {0, 504}, {1, 904}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("hits = %v, want %v", got, want)
+	}
+}
+
 func TestRead_PatternAtScanRangeEdges(t *testing.T) {
 	p := []byte{0xA1, 0xB2, 0xC3, 0xD4}
 	// p at offset 0, then two adjacent copies, the last ending on the last scanned byte.
