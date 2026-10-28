@@ -17,7 +17,8 @@ import (
 // (23 <health id> 00 00 00 00 <hash> <len> <value>) or as a continuation (22 <hash> <len> <value>)
 // directly after one. Observed properties (Y11S2 and Y11S3):
 //
-//	25 26 76 C9  uint32  current health (100/110/125 at spawn, 20 after a revive, 0 when downed or dead)
+//	25 26 76 C9  uint32  current health (100/110/125 at spawn, 135/150 with Rook armor, 20 after a
+//	                     revive, 0 when downed or dead); read into healthSamples, see damageTaken
 //	E7 88 F6 A5  uint32  health state (see below)
 //	72 5E 99 F9  float32 bleed-out progress while downed, 0 -> 1 (~0.028/s)
 //	91 5F DF 38  uint8   set while downed (toggles while being revived/interrogated, meaning unconfirmed)
@@ -28,6 +29,7 @@ import (
 var (
 	healthLinkIndicator  = []byte{0x41, 0x54, 0xDC, 0xC4}
 	healthStateIndicator = []byte{0xE7, 0x88, 0xF6, 0xA5, 0x04}
+	healthValueIndicator = []byte{0x25, 0x26, 0x76, 0xC9, 0x04}
 )
 
 const (
@@ -56,6 +58,17 @@ type healthTransition struct {
 // scoreRevive is a +50 score update, the score bonus for a revive.
 type scoreRevive struct {
 	player  int
+	elapsed float64
+}
+
+// healthSample is one current-health value of a health component. It is keyed by the component
+// and resolved to a player after the round: the spawn snapshot is written before the player's
+// slot is known.
+type healthSample struct {
+	health  [4]byte
+	hp      uint32
+	started bool // the round clock was running
+	phase   RoundPhase
 	elapsed float64
 }
 
@@ -276,4 +289,88 @@ func (r *Reader) resolveHealthEvents() {
 	for _, u := range revives {
 		r.insertByElapsed(u)
 	}
+}
+
+// readHealthValue records a current-health value. Unlike readHealthState it also records values
+// read before the round clock starts: they hold the defenders' spawn health.
+func readHealthValue(r *Reader) error {
+	start := r.offset - len(healthValueIndicator)
+	if r.offset+4 > len(r.b) {
+		return nil
+	}
+	owner, ok := r.healthRecordOwner(start)
+	if !ok {
+		return nil
+	}
+	s := healthSample{
+		health:  owner,
+		hp:      binary.LittleEndian.Uint32(r.b[r.offset : r.offset+4]),
+		started: r.clock.started,
+	}
+	if s.started {
+		s.phase = r.clock.phase
+		s.elapsed = r.elapsed()
+	}
+	r.healthSamples = append(r.healthSamples, s)
+	return nil
+}
+
+// damageTakenFromSeries returns the HP a player lost, from the player's health values in read
+// order. Attackers start from their last pre-action value (the round file opens with the value
+// of the previous round, followed by the prep reset); defenders start from their first. Increases
+// (revive, Rook armor, boost) are not damage, and neither is boost health decaying 1 HP/s above
+// the starting value. A player who died and whose last value is above 0 lost the rest as well.
+func damageTakenFromSeries(series []healthSample, attacker, died bool) int {
+	if len(series) == 0 {
+		return 0
+	}
+	base := 0
+	if attacker {
+		for i, s := range series {
+			if !s.started || s.phase == PrepPhase {
+				base = i
+			}
+		}
+	}
+	dmg := 0
+	for i := base + 1; i < len(series); i++ {
+		a, b := series[i-1].hp, series[i].hp
+		if b >= a {
+			continue
+		}
+		if a-b == 1 && a > series[base].hp {
+			continue
+		}
+		dmg += int(a - b)
+	}
+	if last := series[len(series)-1].hp; died && last > 0 {
+		dmg += int(last)
+	}
+	return dmg
+}
+
+// damageTaken returns the HP lost per player index, for players with at least one health value.
+func (r *Reader) damageTaken() map[int]int {
+	series := make(map[int][]healthSample)
+	for _, s := range r.healthSamples {
+		if i := r.playerIndexByHealth(s.health); i >= 0 {
+			series[i] = append(series[i], s)
+		}
+	}
+	died := make(map[string]bool)
+	for _, u := range r.MatchFeedback {
+		switch u.Type {
+		case Kill:
+			died[u.Target] = true
+		case Death:
+			died[u.Username] = true
+		}
+	}
+	out := make(map[int]int, len(series))
+	for i, s := range series {
+		p := r.Header.Players[i]
+		attacker := p.TeamIndex >= 0 && p.TeamIndex < len(r.Header.Teams) && r.Header.Teams[p.TeamIndex].Role == Attack
+		out[i] = damageTakenFromSeries(s, attacker, died[p.Username])
+	}
+	return out
 }

@@ -20,6 +20,9 @@ type PlayerRoundStats struct {
 	HeadshotPercentage float64       `json:"headshotPercentage"`
 	OneVx              int           `json:"1vX,omitempty"`
 	ClutchDetail       *ClutchDetail `json:"clutchDetail,omitempty"`
+	// DamageTaken is the HP the player lost this round from any source, read from the health
+	// component (Y10S4+). Nil, and omitted from JSON, when the round has no health data.
+	DamageTaken *int `json:"damageTaken,omitempty"`
 }
 
 type PlayerMatchStats struct {
@@ -31,6 +34,8 @@ type PlayerMatchStats struct {
 	Assists            int     `json:"assists"`
 	Headshots          int     `json:"headshots"`
 	HeadshotPercentage float64 `json:"headshotPercentage"`
+	// DamageTaken is the sum over the rounds that have it; nil when no round does.
+	DamageTaken *int `json:"damageTaken,omitempty"`
 }
 
 // OpeningKill returns the first player to kill. Teamkills do not count.
@@ -125,6 +130,9 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 			return stats[i].TeamIndex
 		}
 		return -1
+	}
+	for i, v := range r.damageTaken() {
+		stats[i].DamageTaken = &v
 	}
 	lastDeath := -1
 	for _, a := range r.MatchFeedback {
@@ -256,6 +264,13 @@ func (m *MatchReader) PlayerStats() []PlayerMatchStats {
 			stats[i].Assists += p.Assists
 			stats[i].Headshots += p.Headshots
 			stats[i].HeadshotPercentage = headshotPercentage(stats[i].Headshots, stats[i].Kills)
+			if p.DamageTaken != nil {
+				sum := *p.DamageTaken
+				if stats[i].DamageTaken != nil {
+					sum += *stats[i].DamageTaken
+				}
+				stats[i].DamageTaken = &sum
+			}
 		}
 	}
 	return stats

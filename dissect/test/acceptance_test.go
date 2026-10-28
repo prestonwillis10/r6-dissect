@@ -17,7 +17,7 @@ func TestAcceptance_Replays(t *testing.T) {
 	if dirs == "" {
 		t.Skip("R6_DISSECT_REPLAY_DIRS not set")
 	}
-	var rounds, downs, downsCredited, revives, revivesCredited int
+	var rounds, downs, downsCredited, revives, revivesCredited, damage, damageRows int
 	for _, dir := range strings.Split(dirs, ":") {
 		files, err := filepath.Glob(filepath.Join(dir, "*.rec"))
 		if err != nil || len(files) == 0 {
@@ -29,6 +29,9 @@ func TestAcceptance_Replays(t *testing.T) {
 			name := filepath.Base(file)
 			rounds++
 			checkRound(t, name, r)
+			rows, total := checkDamageTaken(t, name, r)
+			damageRows += rows
+			damage += total
 			for _, u := range r.MatchFeedback {
 				switch u.Type {
 				case dissect.DBNO:
@@ -46,6 +49,34 @@ func TestAcceptance_Replays(t *testing.T) {
 		}
 	}
 	t.Logf("rounds %d, DBNO %d (%d credited), Revive %d (%d credited)", rounds, downs, downsCredited, revives, revivesCredited)
+	t.Logf("damage taken: %d over %d player-rounds", damage, damageRows)
+}
+
+// checkDamageTaken checks the damageTaken of a round's stats and returns the rows that have it and their sum.
+func checkDamageTaken(t *testing.T, name string, r *dissect.Reader) (rows, total int) {
+	t.Helper()
+	for _, s := range r.PlayerStats() {
+		if r.Header.CodeVersion < dissect.Y10S4 {
+			if s.DamageTaken != nil {
+				t.Errorf("%s: %s has damageTaken before Y10S4", name, s.Username)
+			}
+			continue
+		}
+		if s.DamageTaken == nil {
+			t.Errorf("%s: %s has no damageTaken", name, s.Username)
+			continue
+		}
+		d := *s.DamageTaken
+		if d < 0 || d > 400 {
+			t.Errorf("%s: %s damageTaken %d out of range", name, s.Username, d)
+		}
+		if s.Died && d == 0 {
+			t.Errorf("%s: %s died without taking damage", name, s.Username)
+		}
+		rows++
+		total += d
+	}
+	return rows, total
 }
 
 func readRound(t *testing.T, file string) *dissect.Reader {
