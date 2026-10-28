@@ -174,6 +174,7 @@ func writeRound(in io.Reader, out io.Writer) error {
 		dissect.Header
 		MatchFeedback []dissect.MatchUpdate      `json:"matchFeedback"`
 		PlayerStats   []dissect.PlayerRoundStats `json:"stats"`
+		Warnings      []dissect.ReadWarning      `json:"warnings,omitempty"`
 	}
 	if err := r.Read(); !dissect.Ok(err) {
 		return err
@@ -183,6 +184,7 @@ func writeRound(in io.Reader, out io.Writer) error {
 		r.Header,
 		r.MatchFeedback,
 		r.PlayerStats(),
+		r.Warnings,
 	})
 }
 

@@ -84,11 +84,13 @@ func readJSON(path string) string {
 			dissect.Header
 			MatchFeedback []dissect.MatchUpdate      `json:"matchFeedback"`
 			PlayerStats   []dissect.PlayerRoundStats `json:"stats"`
+			Warnings      []dissect.ReadWarning      `json:"warnings,omitempty"`
 		}
 		return convertForExport(round{
 			r.Header,
 			r.MatchFeedback,
 			r.PlayerStats(),
+			r.Warnings,
 		})
 	}
 }

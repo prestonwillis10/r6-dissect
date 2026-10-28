@@ -104,6 +104,9 @@ See example outputs in [/examples](https://github.com/redraskal/r6-dissect/tree/
 
 On Y10S4+ replays, the defuser planter/disabler is read from the defuser packets; if that player cannot be resolved, they are inferred from the +100 score bonus or the last player alive. A `DefuserDisableComplete` is added when defense wins a round after a plant without one being recorded. On Y10S4+ replays, the killer of a kill can be corrected from the scoreboard when the kill feed and the scoreboard disagree. Downs and revives are read from each player's health state; the reviver is inferred from the +50 score bonus of a teammate within 3 seconds of the revive.
 
+### Round warnings
+A round can carry `warnings` when a part of the replay could not be read, for example because a newer game build moved a marker the parser looks for. The packet that failed is skipped and the rest of the round is still read; each entry says what may be missing: `listener` (the parser function), `pattern` (the bytes it looks for), `error`, `count` (how many packets failed that way) and `firstOffset` (where the first failing match starts in the decompressed round). The key is absent when nothing failed.
+
 ## Importing a .rec file
 ```go
 package main
@@ -130,6 +133,7 @@ func main() {
 	if err := r.Read(); !dissect.Ok(err) {
 		log.Fatal(err)
 	}
+	// r.Warnings lists listeners that failed; the rest of the round was read
 	print(r.Header.GameVersion) // Y11S1_Alpha03
 }
 ```

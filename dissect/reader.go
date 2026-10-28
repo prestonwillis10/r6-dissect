@@ -6,6 +6,7 @@ import (
 	"cmp"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"runtime"
@@ -245,7 +246,11 @@ func (r *Reader) findQueries(start, end int) []match {
 }
 
 // Read continues reading the replay past the header until the EOF.
-func (r *Reader) Read() (err error) {
+//
+// It returns an error only when the replay has no data after its header
+// (ErrNoReplayData). A listener that fails is skipped for that one packet and
+// recorded in Warnings; every later listener and the end-of-round work still run.
+func (r *Reader) Read() error {
 	if r.offset >= len(r.b) {
 		// nothing after the header to scan
 		return ErrNoReplayData
@@ -260,8 +265,8 @@ func (r *Reader) Read() (err error) {
 		for _, listener := range r.listeners[entry.listenerIndex] {
 			r.offset = entry.offset + 1
 			n := len(r.MatchFeedback)
-			if err = listener(r); err != nil {
-				return
+			if err := listener(r); err != nil {
+				r.listenerFailed(entry.listenerIndex, listener, entry.offset, err)
 			}
 			r.stampNew(n)
 		}
@@ -279,7 +284,7 @@ func (r *Reader) Read() (err error) {
 		r.applyLoadouts()
 	}
 	r.b = nil
-	return err
+	return nil
 }
 
 // ReadPartial continues reading the replay past the header until the full player list is read.
@@ -294,7 +299,8 @@ func (r *Reader) ReadPartial() error {
 }
 
 // Listen registers a callback to be run during Read whenever
-// the pattern is found.
+// the pattern is found. If the callback returns an error, Read records it in
+// Warnings and goes on; what the callback changed before the error is kept.
 func (r *Reader) Listen(pattern []byte, callback func(r *Reader) error) {
 	var i int
 	for i = 0; i < len(r.queries); i++ {
@@ -322,13 +328,12 @@ func (r *Reader) Seek(pattern []byte) error {
 		}
 	}
 	r.offset = max(len(r.b), start+1)
+	e := log.Warn().Int("bytes", r.offset-start).Str("pattern", fmt.Sprintf("% X", pattern))
 	pc, _, _, ok := runtime.Caller(1)
-	details := runtime.FuncForPC(pc)
-	if ok && details != nil {
-		log.Warn().Int("bytes", r.offset-start).Interface("func", details.Name()).Msg("large seek")
-	} else {
-		log.Warn().Int("bytes", r.offset-start).Msg("large seek")
+	if details := runtime.FuncForPC(pc); ok && details != nil {
+		e = e.Interface("func", details.Name())
 	}
+	e.Msg("large seek")
 	return io.EOF
 }
 
