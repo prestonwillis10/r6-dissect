@@ -98,9 +98,6 @@ func (r *Reader) movePlayerIndices(newIndex []int) {
 }
 
 func moveByPlayer(m map[int]uint32, moved func(int) int) map[int]uint32 {
-	if m == nil {
-		return nil
-	}
 	out := make(map[int]uint32, len(m))
 	for i, v := range m {
 		if j := moved(i); j >= 0 {
