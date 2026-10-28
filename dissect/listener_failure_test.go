@@ -276,8 +276,9 @@ func TestRead_ListenerFailureIsLoggedAtWarn(t *testing.T) {
 	if err := r.Read(); err != nil {
 		t.Fatalf("Read returned %v; want nil", err)
 	}
-	lines := strings.Split(strings.TrimSpace(logs.String()), "\n")
-	if len(lines) != 1 {
+	out := strings.TrimSpace(logs.String())
+	lines := strings.Split(out, "\n")
+	if out == "" || len(lines) != 1 {
 		t.Fatalf("want one log line, got %q", logs.String())
 	}
 	var got struct {
