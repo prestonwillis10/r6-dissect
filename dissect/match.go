@@ -223,7 +223,11 @@ func (m *MatchReader) WriteExcel(out io.Writer) error {
 		c.Down(1).Left(2).Str("Site")
 		c.Right(1).Str(r.Header.Site)
 		c.Down(1).Left(1).Str("Winning team")
-		c.Right(1).Str(fmt.Sprintf("%s [%d]", r.Header.Teams[winningTeamIndex].Name, winningTeamIndex))
+		if r.roundDecided() {
+			c.Right(1).Str(fmt.Sprintf("%s [%d]", r.Header.Teams[winningTeamIndex].Name, winningTeamIndex))
+		} else {
+			c.Right(1).Str("")
+		}
 		c.Down(1).Left(2).Str("Win condition")
 		c.Right(1).Str(string(r.Header.Teams[winningTeamIndex].WinCondition))
 		c.Down(1).Left(2).Str("Opening kill")
