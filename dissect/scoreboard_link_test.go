@@ -1,7 +1,9 @@
 package dissect
 
 import (
+	"bytes"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"testing"
 )
@@ -323,4 +325,92 @@ func TestEnsureScoreboardMapping_Reconnect(t *testing.T) {
 	r.link(entC, objC)
 	r.ensureScoreboardMapping()
 	wantMapping(t, r, map[uint64]int{entA: 0, entB: 1, entC: 2})
+}
+
+// readFixtureWithout reads a fixture round as if the player had left before it: their player
+// packet is hidden, so they keep a scoreboard entity (linked to a player object no player packet
+// names) and a header entry, but readPlayer never reads them. This is the layout of a round after
+// a player left the match, rewritten from one of our own fixtures.
+func readFixtureWithout(t *testing.T, path, username string) *Reader {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	r, err := NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet := append([]byte{0x22, 0x07, 0x94, 0x9B, 0xDC, byte(len(username))}, username...)
+	if n := bytes.Count(r.b, packet); n != 1 {
+		t.Fatalf("%s: %d player packets for %s, want 1", path, n, username)
+	}
+	hidden := bytes.Clone(packet)
+	hidden[4] = 0x00
+	r.b = bytes.Replace(r.b, packet, hidden, 1)
+	if err := r.Read(); !Ok(err) {
+		t.Fatal(err)
+	}
+	return r
+}
+
+type playerRound struct {
+	score, assists uint32
+}
+
+func scoreboardByPlayer(r *Reader) map[string]playerRound {
+	out := map[string]playerRound{}
+	for i, p := range r.Header.Players {
+		var row ScoreboardPlayer
+		if i < len(r.Scoreboard.Players) {
+			row = r.Scoreboard.Players[i]
+		}
+		out[p.Username] = playerRound{row.Score, row.AssistsFromRound}
+	}
+	return out
+}
+
+func killList(r *Reader) string {
+	var b bytes.Buffer
+	for _, u := range r.MatchFeedback {
+		if u.Type == Kill {
+			fmt.Fprintf(&b, "%s>%s ", u.Username, u.Target)
+		}
+	}
+	return b.String()
+}
+
+// A round in which a player who left keeps a scoreboard entity: the other players keep their own
+// score, assists and kills. Zipping the sbIDs with readPlayer order gave each player read after
+// the one who left the next player's row and moved kills to match.
+func TestScoreboardLink_LeftPlayerFixture(t *testing.T) {
+	for _, tc := range []struct{ path, left string }{
+		{"test/data/replays/valid/Y11S2/custom_solid_snake.rec", "WifiIsDown"}, // read second
+		{"test/data/replays/valid/Y11S2/custom_solid_snake.rec", "flux_"},      // read first
+		{"test/data/replays/valid/Y11S2/custom_early_plant.rec", "WifiIsDown"},
+	} {
+		t.Run(tc.path+"/"+tc.left, func(t *testing.T) {
+			want := readFixture(t, tc.path)
+			wantRows, wantKills := scoreboardByPlayer(want), killList(want)
+			for run := 0; run < 3; run++ {
+				r := readFixtureWithout(t, tc.path, tc.left)
+				got := scoreboardByPlayer(r)
+				for name, w := range wantRows {
+					if name == tc.left {
+						continue
+					}
+					if got[name] != w {
+						t.Errorf("run %d, %s: got %+v, want %+v", run, name, got[name], w)
+					}
+				}
+				if g := got[tc.left]; g != (playerRound{}) {
+					t.Errorf("run %d: the player who left got %+v", run, g)
+				}
+				if g := killList(r); g != wantKills {
+					t.Errorf("run %d: kills\n got %s\nwant %s", run, g, wantKills)
+				}
+			}
+		})
+	}
 }
