@@ -60,7 +60,14 @@ func TestReadScoreboardEntity(t *testing.T) {
 			b.Write(make([]byte, 12))
 			b.scoreboardLink(0x1A, 0, ent, scoreboardEntityClass)
 		}, false},
-		{"unnamed ref with an owner-sized prefix", func(b *inventoryBuilder) { b.scoreboardLink(0x1A, obj, ent, scoreboardEntityClass) }, false},
+		{"0x1A before an owner handle", func(b *inventoryBuilder) {
+			b.WriteByte(0x1A)
+			b.handle(obj)
+			b.Write(scoreboardEntityField)
+			b.handle(ent)
+			b.Write(scoreboardEntityClass)
+		}, false},
+		{"unnamed ref at the start", func(b *inventoryBuilder) { b.scoreboardLink(0x1A, 0, ent, scoreboardEntityClass) }, false},
 		{"other op", func(b *inventoryBuilder) {
 			b.WriteByte(0x23)
 			b.handle(obj)
@@ -393,6 +400,11 @@ func TestScoreboardLink_LeftPlayerFixture(t *testing.T) {
 		t.Run(tc.path+"/"+tc.left, func(t *testing.T) {
 			want := readFixture(t, tc.path)
 			wantRows, wantKills := scoreboardByPlayer(want), killList(want)
+			for name, w := range wantRows {
+				if w.score == 0 {
+					t.Fatalf("%s has no score in the unmodified round", name)
+				}
+			}
 			for run := 0; run < 3; run++ {
 				r := readFixtureWithout(t, tc.path, tc.left)
 				got := scoreboardByPlayer(r)
