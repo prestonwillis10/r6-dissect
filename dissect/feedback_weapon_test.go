@@ -67,10 +67,10 @@ func readOneKill(t *testing.T, codeVersion int, b []byte, tailLen int) MatchUpda
 func TestReadMatchFeedback_KillWeaponID(t *testing.T) {
 	for _, h := range killHeaders {
 		t.Run(h.name, func(t *testing.T) {
-			tail := weaponTail(1366019496)
+			tail := weaponTail(395972905309) // above 2^32, so all 8 bytes are read
 			u := readOneKill(t, h.codeVersion, killPacket(h.header, "atk", "def", 1, tail), len(tail))
-			if u.WeaponID != 1366019496 {
-				t.Errorf("WeaponID %d, want 1366019496", u.WeaponID)
+			if u.WeaponID != 395972905309 {
+				t.Errorf("WeaponID %d, want 395972905309", u.WeaponID)
 			}
 			if u.feedKiller != "atk" {
 				t.Errorf("feedKiller %q, want atk", u.feedKiller)
