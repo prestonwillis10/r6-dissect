@@ -48,6 +48,7 @@ type Reader struct {
 	healthToSlot           map[[4]byte][4]byte // Y10S4+: maps a health component entity ID to its player slot entity ID
 	healthState            map[int]uint32      // Y10S4+: last health state per player index
 	healthTransitions      []healthTransition  // Y10S4+: health state changes of all players
+	healthSamples          []healthSample      // Y10S4+: current health values of all health components, in read order
 	scoreRevives           []scoreRevive       // Y10S4+: +50 score updates, matched with revives
 	Header                 Header              `json:"header"`
 	MatchFeedback          []MatchUpdate       `json:"matchFeedback"`
@@ -101,6 +102,7 @@ func NewReader(in io.Reader) (r *Reader, err error) {
 		r.Listen(defuserPawnIndicator, readDefuserPawn)
 		r.Listen(healthLinkIndicator, readHealthLink)
 		r.Listen(healthStateIndicator, readHealthState)
+		r.Listen(healthValueIndicator, readHealthValue)
 	}
 	r.Listen([]byte{0xEC, 0xDA, 0x4F, 0x80}, readScoreboardScore)
 	r.Listen([]byte{0x4D, 0x73, 0x7F, 0x9E}, readScoreboardAssists)

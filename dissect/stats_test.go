@@ -1,6 +1,10 @@
 package dissect
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 func kill(killer, target string, elapsed float64) MatchUpdate {
 	return MatchUpdate{Type: Kill, Username: killer, Target: target, Phase: ActionPhase, ElapsedSeconds: elapsed}
@@ -77,3 +81,71 @@ func TestPlayerStats_OneVxNoClutchFallback(t *testing.T) {
 		}
 	}
 }
+
+// damageReader builds a round whose players have health series: totals[i] HP lost by player i
+// as a defender-style series [spawn, spawn-total]; a negative total gives the player no samples.
+func damageReader(names []string, totals []int) *Reader {
+	r := &Reader{healthToSlot: map[[4]byte][4]byte{}, Header: Header{Teams: [2]Team{{Role: Attack}, {Role: Defense}}}}
+	for i, n := range names {
+		slot, health := [4]byte{byte(i + 1)}, [4]byte{0xA0, byte(i + 1)}
+		r.Header.Players = append(r.Header.Players, Player{Username: n, TeamIndex: 1, slotID: slot[:]})
+		if totals[i] < 0 {
+			continue
+		}
+		r.healthToSlot[health] = slot
+		r.healthSamples = append(r.healthSamples,
+			healthSample{health: health, hp: 110},
+			healthSample{health: health, hp: uint32(110 - totals[i]), started: true, phase: ActionPhase})
+	}
+	return r
+}
+
+func TestPlayerStats_DamageTakenOmittedWithoutHealth(t *testing.T) {
+	r := damageReader([]string{"a", "b"}, []int{-1, -1})
+	for _, s := range r.PlayerStats() {
+		if s.DamageTaken != nil {
+			t.Fatalf("%s: want nil damage, got %d", s.Username, *s.DamageTaken)
+		}
+		b, _ := json.Marshal(s)
+		if strings.Contains(string(b), "damageTaken") {
+			t.Fatalf("%s: damageTaken serialised: %s", s.Username, b)
+		}
+	}
+}
+
+func TestPlayerStats_DamageTakenZeroIsKept(t *testing.T) {
+	r := damageReader([]string{"a"}, []int{0})
+	s := r.PlayerStats()[0]
+	b, _ := json.Marshal(s)
+	if s.DamageTaken == nil || *s.DamageTaken != 0 || !strings.Contains(string(b), `"damageTaken":0`) {
+		t.Fatalf("an untouched player must report 0, not unknown: %s", b)
+	}
+}
+
+// each row owns its value: no two rows share a pointer.
+func TestPlayerStats_DamageTakenRowsDistinct(t *testing.T) {
+	r := damageReader([]string{"a", "b"}, []int{10, 20})
+	st := r.PlayerStats()
+	if *st[0].DamageTaken != 10 || *st[1].DamageTaken != 20 || st[0].DamageTaken == st[1].DamageTaken {
+		t.Fatalf("rows share or mix values: %d %d", *st[0].DamageTaken, *st[1].DamageTaken)
+	}
+}
+
+func TestMatchPlayerStats_DamageTakenSums(t *testing.T) {
+	r1 := damageReader([]string{"a", "b", "c"}, []int{40, -1, -1})
+	r2 := damageReader([]string{"a", "b", "c"}, []int{110, 30, -1})
+	got := (&MatchReader{rounds: []*Reader{r1, r2}}).PlayerStats()
+	want := map[string]*int{"a": ptr(150), "b": ptr(30), "c": nil}
+	for _, s := range got {
+		w := want[s.Username]
+		if (w == nil) != (s.DamageTaken == nil) || (w != nil && *w != *s.DamageTaken) {
+			t.Errorf("%s: want %v got %v", s.Username, w, s.DamageTaken)
+		}
+	}
+	b, _ := json.Marshal(got[2])
+	if strings.Contains(string(b), "damageTaken") {
+		t.Errorf("match row without data serialised damageTaken: %s", b)
+	}
+}
+
+func ptr(v int) *int { return &v }
