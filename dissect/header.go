@@ -343,14 +343,116 @@ func (r *Reader) readHeaderMagic() error {
 	return nil
 }
 
-func (r *Reader) readHeader() (Header, error) {
-	props := make(map[string]string)
-	gmSettings := make([]int, 0)
-	players := make([]Player, 0)
-	// Loops until the last property is mapped.
+type headerEntry struct {
+	key, value string
+}
+
+// headerPlayerKeys are the header keys that belong to a player. Every player starts with playerid.
+var headerPlayerKeys = map[string]bool{
+	"playerid": true, "profileid": true, "playername": true, "team": true, "heroname": true,
+	"alliance": true, "roleimage": true, "rolename": true, "roleportrait": true,
+}
+
+// headerMatchKeys are the known header keys that belong to the match. One of them ends the
+// current player; unknown keys do not, so that a player key added in a later season keeps
+// the player together.
+var headerMatchKeys = map[string]bool{
+	"version": true, "code": true, "datetime": true, "matchtype": true, "worldid": true,
+	"recordingplayerid": true, "isspectator": true, "recordingprofileid": true, "additionaltags": true,
+	"gamemodeid": true, "roundspermatch": true, "roundspermatchovertime": true, "roundnumber": true,
+	"overtimeroundnumber": true, "teamname0": true, "startingteamscore0": true, "teamname1": true,
+	"startingteamscore1": true, "gmsetting": true, "maxnbplayersperteam": true, "playlistcategory": true,
+	"id": true, "starttime": true, "teamscore0": true, "teamscore1": true,
+}
+
+// splitHeaderEntries separates the header into match properties, gamemode settings and players.
+// A player starts with playerid and ends at the next playerid or known match key.
+// Since Y11S2 the header lists half of the players before the match properties.
+func splitHeaderEntries(entries []headerEntry) (props map[string]string, gmSettings []int, players []Player, err error) {
+	props = make(map[string]string)
+	gmSettings = make([]int, 0)
+	players = make([]Player, 0)
 	currentPlayer := Player{}
 	playerData := false
-	for lastProp := false; !lastProp; {
+	for _, e := range entries {
+		k, v := e.key, e.value
+		if playerData && (k == "playerid" || headerMatchKeys[k]) {
+			players = append(players, currentPlayer)
+			playerData = false
+		}
+		if k == "playerid" {
+			playerData = true
+			currentPlayer = Player{}
+		}
+		if !playerData {
+			if k == "gmsetting" {
+				n, err := strconv.Atoi(v)
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				gmSettings = append(gmSettings, n)
+			} else {
+				props[k] = v
+			}
+			continue
+		}
+		switch k {
+		case "playerid":
+			n, err := strconv.ParseUint(v, 10, 64)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			currentPlayer.ID = n
+		case "playername":
+			currentPlayer.Username = v
+		case "team":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			currentPlayer.TeamIndex = n
+		case "heroname":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			currentPlayer.HeroName = n
+		case "alliance":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			currentPlayer.Alliance = n
+		case "roleimage":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			currentPlayer.RoleImage = n
+		case "rolename":
+			currentPlayer.RoleName = v
+		case "roleportrait":
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			currentPlayer.RolePortrait = n
+		default:
+			if !headerPlayerKeys[k] {
+				props[k] = v
+			}
+		}
+	}
+	if playerData {
+		players = append(players, currentPlayer)
+	}
+	return props, gmSettings, players, nil
+}
+
+func (r *Reader) readHeader() (Header, error) {
+	// Reads until the last property.
+	entries := make([]headerEntry, 0)
+	for {
 		k, err := r.readHeaderString()
 		if err != nil {
 			return Header{}, err
@@ -359,74 +461,14 @@ func (r *Reader) readHeader() (Header, error) {
 		if err != nil {
 			return Header{}, err
 		}
-		if k == "playerid" {
-			if playerData {
-				players = append(players, currentPlayer)
-			}
-			playerData = true
-			currentPlayer = Player{}
+		entries = append(entries, headerEntry{k, v})
+		if k == "teamscore1" {
+			break
 		}
-		if (k == "playlistcategory" || k == "id") && playerData {
-			players = append(players, currentPlayer)
-			playerData = false
-		}
-		if !playerData {
-			if k == "gmsetting" {
-				n, err := strconv.Atoi(v)
-				if err != nil {
-					return Header{}, err
-				}
-				gmSettings = append(gmSettings, n)
-			} else {
-				props[k] = v
-			}
-		} else {
-			switch k {
-			case "playerid":
-				n, err := strconv.ParseUint(v, 10, 64)
-				if err != nil {
-					return Header{}, err
-				}
-				currentPlayer.ID = n
-			case "playername":
-				currentPlayer.Username = v
-			case "team":
-				n, err := strconv.Atoi(v)
-				if err != nil {
-					return Header{}, err
-				}
-				currentPlayer.TeamIndex = n
-			case "heroname":
-				n, err := strconv.Atoi(v)
-				if err != nil {
-					return Header{}, err
-				}
-				currentPlayer.HeroName = n
-			case "alliance":
-				n, err := strconv.Atoi(v)
-				if err != nil {
-					return Header{}, err
-				}
-				currentPlayer.Alliance = n
-			case "roleimage":
-				n, err := strconv.Atoi(v)
-				if err != nil {
-					return Header{}, err
-				}
-				currentPlayer.RoleImage = n
-			case "rolename":
-				currentPlayer.RoleName = v
-			case "roleportrait":
-				n, err := strconv.Atoi(v)
-				if err != nil {
-					return Header{}, err
-				}
-				currentPlayer.RolePortrait = n
-			default:
-				props[k] = v
-			}
-		}
-		_, lastProp = props["teamscore1"]
+	}
+	props, gmSettings, players, err := splitHeaderEntries(entries)
+	if err != nil {
+		return Header{}, err
 	}
 	h := Header{
 		Teams:      [2]Team{},
