@@ -35,8 +35,10 @@ type knownFailure struct {
 // green while exactly these fail. If one starts passing, the test goes red and the entry must be
 // removed; if any other folder or invariant fails, it goes red as well.
 var knownMatchFailures = map[string][]knownFailure{
+	// round 5 is decided, but the score reader drops the round-start snapshot row, so a player who
+	// scored nothing in that round reads 0 (rev-43 F3)
 	"nick-Match-2026-03-08_19-55-32-21916": {
-		{kind: kindScoreDrop, owner: "#19 (round forfeited in prep keeps no scoreboard)"},
+		{kind: kindScoreDrop, owner: "fork-ports candidate 6 (the Y10S4+ score reader drops round-start snapshot rows)"},
 	},
 	// the scoreboard zip mapping shifts after a player leaves, and the reconcile then picks
 	// attributions in map order
