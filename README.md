@@ -104,6 +104,8 @@ See example outputs in [/examples](https://github.com/redraskal/r6-dissect/tree/
 | `phase` | `Prep`, `Action` or `PostPlant` (after the defuser was planted). Rounds without a plant have no `PostPlant` events. |
 | `elapsedSeconds` | Seconds since the action phase started. Always increases during a round; negative during the preparation phase. Use this to order or compare events. |
 | `teamKill` | The kill was a teamkill. Teamkills count as a death for the victim but not as a kill. On a `DBNO`, the down ended in a teamkill. |
+| `weaponID` | Kill events. The asset ID of the item that made the kill, read from the kill packet: the same IDs as a player's `loadout` fields. It can be another player's deployed gadget. Omitted when the kill packet has no weapon field. |
+| `weaponSlot` | Kill events. `primary`, `secondary`, `gadget` or `ability`: the slot `weaponID` has in the loadout of the player the kill packet names. On Y10S4+ that player can differ from `username`, which can be corrected from the scoreboard to the player who downed the target. Omitted when the ID is in none of that player's slots. |
 | `DBNO` events | Y10S4+. `target` is the downed player. `username` is the player credited with the kill if the downed player died, otherwise empty (the replay does not say who downed a player who was revived or bled out). |
 | `Revive` events | Y10S4+. `target` is the revived player. `username` is the reviver, if one could be found. |
 
