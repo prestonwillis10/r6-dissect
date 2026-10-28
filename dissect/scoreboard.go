@@ -1,10 +1,46 @@
 package dissect
 
 import (
+	"bytes"
 	"encoding/hex"
 
 	"github.com/rs/zerolog/log"
 )
+
+// Y10S4+: every player object references its scoreboard entity,
+//
+//	1B <player obj> EB219B38 <scoreboard entity> 18A591A1
+//
+// and the first 4 bytes of the entity handle are the sbID its scoreboard fields are written
+// under (23 <sbID> 00000000 1CD2B19D ...). The player object is the one the loadout code
+// tracks (playerObjectField), so the owner resolves through playerIndexByObject. A player who
+// left the match keeps an entity but has no player packet (in the rounds seen, its reference
+// is the 1A form, which has no owner handle); that entity stays unmapped.
+var (
+	scoreboardEntityField = []byte{0xEB, 0x21, 0x9B, 0x38}
+	scoreboardEntityClass = []byte{0x18, 0xA5, 0x91, 0xA1}
+)
+
+// readScoreboardEntity reads 1B <player obj> EB219B38 <entity> 18A591A1 and records the
+// entity's owner. The owner is resolved later, in ensureScoreboardMapping, because the
+// reference comes before the owner's player packet.
+func readScoreboardEntity(r *Reader) error {
+	start := r.offset - len(scoreboardEntityField)
+	if start < handleSize+1 || start+slotTokenSize > len(r.b) || r.b[start-handleSize-1] != 0x1B {
+		return nil
+	}
+	if !bytes.Equal(r.b[start+4+handleSize:start+slotTokenSize], scoreboardEntityClass) || !isZero(r.b[start+8:start+12]) {
+		return nil
+	}
+	owner := readHandle(r.b[start-handleSize : start])
+	var entity [4]byte
+	copy(entity[:], r.b[start+4:start+8])
+	if owner == 0 || entity == [4]byte{} {
+		return nil
+	}
+	r.scoreboardEntityOwner[entity] = owner
+	return nil
+}
 
 type Scoreboard struct {
 	Players []ScoreboardPlayer
