@@ -206,7 +206,7 @@ type match struct {
 // range, so an occurrence is never lost to a block split or to a partial
 // match of the same query that started a few bytes earlier. After an
 // occurrence the search resumes past its last byte, so occurrences of one
-// query never overlap (the old scanner did the same after a completed match).
+// query never overlap. An empty query matches nothing.
 func (r *Reader) findQueries(start, end int) []match {
 	if start < 0 || end > len(r.b) || start >= end {
 		return nil
@@ -307,9 +307,9 @@ func (r *Reader) Listen(pattern []byte, callback func(r *Reader) error) {
 // Seek skips through the replay until the pattern is found and leaves the
 // offset just past it. If the pattern is not found, it returns io.EOF.
 //
-// Seek used to walk r.Bytes(1), which reports io.EOF on reaching the last byte
-// of r.b, so the walk never examined that byte. The search keeps that window,
-// and on a miss leaves the offset where the walk stopped.
+// Like a walk over r.Bytes(1), which reports io.EOF on reaching the last byte
+// of r.b, Seek ignores a match that ends on that byte. On a miss the offset
+// moves to the end of r.b, or one byte on if it was already there.
 func (r *Reader) Seek(pattern []byte) error {
 	start := r.offset
 	if start < len(r.b) {

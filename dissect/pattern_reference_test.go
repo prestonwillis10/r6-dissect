@@ -78,6 +78,14 @@ func TestFindQueries_OutOfRange(t *testing.T) {
 	}
 }
 
+func TestFindQueries_EmptyQueryMatchesNothing(t *testing.T) {
+	r := &Reader{b: []byte{1, 2, 3}, queries: [][]byte{{}, {2}}}
+	want := []match{{offset: 1, listenerIndex: 1}}
+	if got := r.findQueries(0, 3); !reflect.DeepEqual(got, want) {
+		t.Fatalf("findQueries(0, 3) = %v, want %v", got, want)
+	}
+}
+
 // referenceSeek is the definition Seek must meet: the first occurrence of
 // pattern that starts at or after start and ends before the last byte of b
 // (the window the byte walk examined), leaving the offset just past it.
