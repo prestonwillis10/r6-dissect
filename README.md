@@ -74,7 +74,7 @@ Export the entire match:
 ```bash
 r6-dissect Match-2026-03-26_21-19-17-21932 -o match.json
 ```
-A round file that cannot be read (empty, truncated or unreadable) is skipped: the match JSON lists it under `skippedRounds` (`file`, `index` = its 0-based position in the folder, `error`), stderr gets a `round skipped` line, and the CLI still exits 0. If no round file in the folder can be read, it exits 1.
+A round file that cannot be read (empty, unreadable, or cut inside a zstd frame) is skipped: the match JSON lists it under `skippedRounds` (`file`, `index` = its 0-based position in the folder, `error`), stderr gets a `round skipped` line, and the CLI still exits 0. If no round file in the folder can be read, it exits 1. A file cut exactly at a zstd frame boundary is not detected: it reads as a shorter round, with no warning.
 
 Export an Excel spreadsheet:
 ```bash
