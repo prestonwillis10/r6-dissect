@@ -207,33 +207,60 @@ func TestMatchReader_RoundAt_SkippedRound(t *testing.T) {
 	}
 }
 
-// A round whose Read fails part-way is already stored half-read in the
-// reader; it must be dropped, not emitted without its round end.
-func TestMatchReader_Read_DropsRoundWhoseReadFailed(t *testing.T) {
-	m, err := dissect.NewMatchReader(matchFolder(t, map[string][]byte{
+// A listener that fails on round 1's packets no longer fails that round's Read
+// (#31): both rounds are kept, the failure costs only those packets, it is
+// listed on round 1 alone, and no round is skipped.
+func TestMatchReader_Read_KeepsRoundWhoseListenerFailed(t *testing.T) {
+	files := map[string][]byte{
 		"R01.rec": readFixture(t, earlyPlant),
 		"R02.rec": readFixture(t, solidSnake),
-	}))
-	if err != nil {
-		t.Fatal(err)
 	}
-	boom := errors.New("boom")
-	// the player-list pattern, present in both fixtures
-	m.Listen([]byte{0x22, 0x07, 0x94, 0x9B, 0xDC}, func(r *dissect.Reader) error {
-		if r.Header.RoundNumber == 2 {
-			return boom
+	type matchRounds struct {
+		Rounds        []map[string]json.RawMessage `json:"rounds"`
+		SkippedRounds json.RawMessage              `json:"skippedRounds"`
+	}
+	read := func(listen func(*dissect.MatchReader)) matchRounds {
+		t.Helper()
+		m, err := dissect.NewMatchReader(matchFolder(t, files))
+		if err != nil {
+			t.Fatal(err)
 		}
-		return nil
+		listen(m)
+		if err := m.Read(); err != nil {
+			t.Fatalf("Read() = %v, want nil", err)
+		}
+		_, raw := decodeMatch(t, m)
+		var out matchRounds
+		if err := json.Unmarshal(raw, &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	clean := read(func(*dissect.MatchReader) {})
+	// the player-list pattern, present in both fixtures; readPlayer runs on it first
+	got := read(func(m *dissect.MatchReader) {
+		m.Listen([]byte{0x22, 0x07, 0x94, 0x9B, 0xDC}, func(r *dissect.Reader) error {
+			if r.Header.RoundNumber == 0 {
+				return errors.New("boom")
+			}
+			return nil
+		})
 	})
-	var incomplete *dissect.IncompleteMatchError
-	if err := m.Read(); !errors.As(err, &incomplete) {
-		t.Fatalf("Read() = %v, want *IncompleteMatchError", err)
+	if len(got.Rounds) != 2 || got.SkippedRounds != nil {
+		t.Fatalf("rounds = %d, skippedRounds = %s; want 2 rounds and none skipped", len(got.Rounds), got.SkippedRounds)
 	}
-	if len(incomplete.Skipped) != 1 || !errors.Is(incomplete.Skipped[0], boom) {
-		t.Fatalf("Skipped = %v, want one wrapping boom", incomplete.Skipped)
+	var w []dissect.ReadWarning
+	if err := json.Unmarshal(got.Rounds[0]["warnings"], &w); err != nil {
+		t.Fatalf("round 1 warnings %s: %v", got.Rounds[0]["warnings"], err)
 	}
-	out, _ := decodeMatch(t, m)
-	if len(out.Rounds) != 1 || out.Rounds[0].RoundNumber != 0 {
-		t.Errorf("rounds = %+v, want only round 0", out.Rounds)
+	if len(w) != 1 || w[0].Error != "boom" || w[0].Pattern != "22 07 94 9B DC" || w[0].Count == 0 {
+		t.Fatalf("round 1 warnings = %+v, want one boom on 22 07 94 9B DC", w)
+	}
+	if _, ok := got.Rounds[1]["warnings"]; ok {
+		t.Errorf("round 2 carries warnings: %s", got.Rounds[1]["warnings"])
+	}
+	delete(got.Rounds[0], "warnings")
+	if !reflect.DeepEqual(got.Rounds, clean.Rounds) {
+		t.Error("rounds differ from a clean read beyond the warnings")
 	}
 }

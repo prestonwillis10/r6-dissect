@@ -209,6 +209,10 @@ func TestReader_Read(t *testing.T) {
 				if err = gotR.Read(); !dissect.Ok(err) {
 					t.Fatalf("Read(): expected no error, got %v", err)
 				}
+				// the goldens hold no warnings, so a listener failure would not show in them
+				if gotR.Warnings != nil {
+					t.Errorf("Read(): a listener failed on this fixture: %+v", gotR.Warnings)
+				}
 				if *update {
 					writeRoundExpected(path, gotR, t)
 				}

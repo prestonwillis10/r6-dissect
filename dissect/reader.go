@@ -51,6 +51,7 @@ type Reader struct {
 	scoreRevives           []scoreRevive       // Y10S4+: +50 score updates, matched with revives
 	Header                 Header              `json:"header"`
 	MatchFeedback          []MatchUpdate       `json:"matchFeedback"`
+	Warnings               []ReadWarning       `json:"warnings,omitempty"` // listeners that failed, see ReadWarning
 	Scoreboard             Scoreboard
 }
 
