@@ -278,6 +278,8 @@ func (r *Reader) Read() (err error) {
 		r.backfillLeadingUpdates()
 		r.relabelPostPlantWithoutPlant()
 		r.applyLoadouts()
+		// after applyLoadouts, which it reads
+		r.classifyKillWeapons()
 	}
 	r.nameUnknownSwapOperators()
 	r.warnUnknownOperators()

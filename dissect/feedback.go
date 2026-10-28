@@ -47,6 +47,9 @@ type MatchUpdate struct {
 	// Kill: the asset ID of the item that dealt the finishing blow, read from the kill packet. It
 	// uses the same IDs as Loadout, and may be another player's item (e.g. a deployed gadget).
 	WeaponID uint64 `json:"weaponID,omitempty"`
+	// Kill: the slot that holds WeaponID in the loadout of the player the kill packet names, ""
+	// for an item outside that loadout
+	WeaponSlot WeaponSlot `json:"weaponSlot,omitempty"`
 	// Y10S4+: the player whose scoreboard kill counter increased right before this kill packet
 	scoreboardKiller string
 	// Y10S4+: for a DBNO read from the health state, the index+1 of its transition in

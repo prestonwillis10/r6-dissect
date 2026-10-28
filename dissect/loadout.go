@@ -294,3 +294,53 @@ func (r *Reader) applyLoadouts() {
 		}
 	}
 }
+
+// WeaponSlot is the Loadout slot that holds an item.
+type WeaponSlot string
+
+const (
+	PrimarySlot   WeaponSlot = "primary"
+	SecondarySlot WeaponSlot = "secondary"
+	GadgetSlot    WeaponSlot = "gadget"
+	AbilitySlot   WeaponSlot = "ability"
+)
+
+// Slot returns the slot that holds the asset. It checks primary, secondary, gadget and ability in
+// that order, so the first one wins for an asset in two slots. It returns "" for asset 0, an asset
+// in no slot and a nil Loadout.
+func (l *Loadout) Slot(asset uint64) WeaponSlot {
+	if l == nil || asset == 0 {
+		return ""
+	}
+	switch asset {
+	case l.Primary:
+		return PrimarySlot
+	case l.Secondary:
+		return SecondarySlot
+	case l.Gadget:
+		return GadgetSlot
+	case l.Ability:
+		return AbilitySlot
+	}
+	return ""
+}
+
+// classifyKillWeapons sets each Kill's WeaponSlot from the loadout of the player the kill packet
+// names (the finisher). When reconciliation credited the kill to the downer, that is not the
+// Username. It runs after applyLoadouts.
+func (r *Reader) classifyKillWeapons() {
+	for i := range r.MatchFeedback {
+		u := &r.MatchFeedback[i]
+		if u.Type != Kill {
+			continue
+		}
+		killer := u.feedKiller
+		if killer == "" {
+			killer = u.Username
+		}
+		u.WeaponSlot = ""
+		if idx := r.PlayerIndexByUsername(killer); idx >= 0 {
+			u.WeaponSlot = r.Header.Players[idx].Loadout.Slot(u.WeaponID)
+		}
+	}
+}
