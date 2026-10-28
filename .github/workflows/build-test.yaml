@@ -1,9 +1,10 @@
 name: Build & Test
 
+# CI runs only on pull requests into main (operator rule, 2026-10-22: Actions minutes are
+# expensive). Slot PRs into track branches are gated by local runs of the same commands.
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
 
 permissions:
   contents: read
