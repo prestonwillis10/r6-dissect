@@ -92,6 +92,11 @@ func (r *Reader) NumPlayers(team int) int {
 	return n
 }
 
+// roundDecided reports whether a team won the round.
+func (r *Reader) roundDecided() bool {
+	return r.Header.Teams[0].Won || r.Header.Teams[1].Won
+}
+
 func (r *Reader) PlayerStats() []PlayerRoundStats {
 	stats := make([]PlayerRoundStats, 0)
 	index := make(map[string]int)
@@ -165,7 +170,7 @@ func (r *Reader) PlayerStats() []PlayerRoundStats {
 	} else if nWinnersLeftAlive == 0 && lastDeathWasWinner {
 		lastWinnerStanding = lastDeath
 	}
-	if lastWinnerStanding > -1 {
+	if lastWinnerStanding > -1 && r.roundDecided() { // a round without a result has no clutch
 		username := stats[lastWinnerStanding].Username
 		teamLeft := r.NumPlayers(winningTeamIndex)
 		opponentsAlive := r.NumPlayers(1 - winningTeamIndex)

@@ -66,6 +66,8 @@ Example output (abbreviated):
 ```
 Loadouts (Y8S1+) are the game's asset IDs for the primary/secondary weapon, secondary gadget and operator ability at the end of the preparation phase. IDs are stable across seasons and shared by every operator who can equip the item; names are not resolved.
 
+On Y9S4+ replays, a round whose replay holds no result (neither header score moved: the round was abandoned or remade, or the recording ended first) has `"won": false` on both teams and no `winCondition`, and credits no 1vX.
+
 Export the entire match:
 ```bash
 r6-dissect Match-2026-03-26_21-19-17-21932 -o match.json
