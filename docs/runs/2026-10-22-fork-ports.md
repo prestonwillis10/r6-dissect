@@ -214,6 +214,8 @@ worktree: /home/prest/r6-dissect-worktrees/rev-53-r2 branch=(detached 0bc65e5) f
   C1     body | grep -c 'An empty, truncated or unreadable round file is skipped'  expected 0  actual 0
   ```
   All match → merge with no resume once CI on the new head is green.
+- 2026-10-28 #53 head `11e4903`: GitHub CI run 40651736077 SETTLED PASS (246s); main had no commit the track lacked; full preflight 0 FAIL; closing refs 17,18,19,23–33,35. **Landing merged** to `main` at `98e6a68` (07:46:35Z, operator's standing approval on a merge verdict).
+- 2026-10-28 Stage 7: issues #17, #18, #19, #23–#33, #35 CLOSED; #21, #22 (PR #10) and #34 (needs a real 9734089 replay) OPEN. Removed the ledger's worktrees (all clean, no `--force`): fp-s17 … fp-s35, ci-main-only, val, rev-3-b, rev-3-b-r4, rev-37 … rev-53-r2. Kept: this orchestrator worktree until this commit; `/home/prest/projects/R6Stats/r6-dissect-dbno` (pre-existing). Local branches `fp/*` and `ci/pr-into-main-only` deleted with `-d` (none refused). Remote deletes of the same branches were denied by the auto-mode classifier (Git Destructive) and are left to the operator. `track/fork-ports` stays as the record. Deployment owed: an R6Stats vendor bump (see the landing body).
 
 ## Findings
 
