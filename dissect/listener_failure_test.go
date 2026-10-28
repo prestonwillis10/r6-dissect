@@ -315,3 +315,46 @@ func TestSeek_MissLogsPattern(t *testing.T) {
 		t.Fatalf("log line: got %+v (%s)", got, logs.String())
 	}
 }
+
+// A player record whose profile ID marker is missing fails readPlayer for the last player read
+// (its Seek runs to EOF). Only that player may be lost: every other player keeps the score,
+// kills and assists of a clean read.
+func TestRead_PlayerRecordFailureKeepsOtherPlayersStats(t *testing.T) {
+	marker := []byte{0x8A, 0x50, 0x9B, 0xD0} // readPlayer's profileIDIndicator
+	for _, path := range []string{failureFixture, "test/data/replays/valid/Y11S2/custom_solid_snake.rec"} {
+		t.Run(path, func(t *testing.T) {
+			clean := openFixture(t, path)
+			if err := clean.Read(); err != nil {
+				t.Fatal(err)
+			}
+			want := map[string]PlayerRoundStats{}
+			for _, s := range clean.PlayerStats() {
+				want[s.Username] = s
+			}
+			r := openFixture(t, path)
+			last := bytes.LastIndex(r.b, marker)
+			if last < 0 {
+				t.Fatal("no profile ID marker in the fixture")
+			}
+			for i := range marker {
+				r.b[last+i] ^= 0xFF
+			}
+			if err := r.Read(); err != nil {
+				t.Fatalf("Read returned %v; want nil", err)
+			}
+			if len(r.Warnings) != 1 || r.Warnings[0].Listener != "readPlayer" {
+				t.Fatalf("want one readPlayer warning, got %+v", r.Warnings)
+			}
+			got := r.PlayerStats()
+			if len(got) != len(want)-1 {
+				t.Fatalf("got %d players, want %d", len(got), len(want)-1)
+			}
+			for _, s := range got {
+				w := want[s.Username]
+				if s.Score != w.Score || s.Kills != w.Kills || s.Assists != w.Assists {
+					t.Errorf("%s: score/kills/assists = %d/%d/%d, want %d/%d/%d", s.Username, s.Score, s.Kills, s.Assists, w.Score, w.Kills, w.Assists)
+				}
+			}
+		})
+	}
+}

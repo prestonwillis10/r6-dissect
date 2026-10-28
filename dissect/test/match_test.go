@@ -264,3 +264,37 @@ func TestMatchReader_Read_KeepsRoundWhoseListenerFailed(t *testing.T) {
 		t.Error("rounds differ from a clean read beyond the warnings")
 	}
 }
+
+// A listener that fails in every round (#31 acceptance): every round is still read, and each
+// round's JSON carries its own single warning.
+func TestMatchReader_ListenerFailureReadsEveryRound(t *testing.T) {
+	m, err := dissect.NewMatchReader(matchFolder(t, map[string][]byte{
+		"R01.rec": readFixture(t, earlyPlant),
+		"R02.rec": readFixture(t, solidSnake),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	absent := []byte{0xDE, 0xAD, 0xBE, 0xEF, 0x03, 0x03, 0x03, 0x03, 0xFE, 0xED}
+	m.Listen([]byte{0x22, 0x07, 0x94, 0x9B, 0xDC}, func(r *dissect.Reader) error { return r.Seek(absent) })
+	if err := m.Read(); err != nil {
+		t.Fatalf("Read() = %v, want nil", err)
+	}
+	_, raw := decodeMatch(t, m)
+	var out struct {
+		Rounds []struct {
+			Warnings []dissect.ReadWarning `json:"warnings"`
+		} `json:"rounds"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Rounds) != 2 {
+		t.Fatalf("rounds = %d, want 2", len(out.Rounds))
+	}
+	for i, rd := range out.Rounds {
+		if len(rd.Warnings) != 1 || rd.Warnings[0].Error != "EOF" {
+			t.Errorf("round %d warnings = %+v, want one EOF warning", i+1, rd.Warnings)
+		}
+	}
+}
