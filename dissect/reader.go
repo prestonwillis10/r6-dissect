@@ -3,12 +3,13 @@ package dissect
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"encoding/binary"
 	"errors"
 	"io"
 	"math"
 	"runtime"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/klauspost/compress/zstd"
@@ -196,99 +197,63 @@ func (r *Reader) readNonChunkedData(genericReader io.Reader) error {
 }
 
 type match struct {
-	offset        int
-	listenerIndex int
+	offset        int // index of the last byte of the pattern; listeners start at offset+1
+	listenerIndex int // index into r.queries / r.listeners
 }
 
-func (r *Reader) worker(start int, end int, wg *sync.WaitGroup, matches chan<- match) {
-	defer wg.Done()
-	// indexes[j] is the number of bytes of query j matched so far. Only queries
-	// with a partial match (active) or whose first byte matches the current byte
-	// are compared, which is equivalent to comparing every query at every byte.
-	indexes := make([]int, len(r.queries))
-	var startsWith [256][]int
+// findQueries returns every occurrence of every query in r.b[start:end],
+// ordered by offset and then by listener index (registration order).
+//
+// Each query is searched for on its own with bytes.Index over the whole
+// range, so an occurrence is never lost to a block split or to a partial
+// match of the same query that started a few bytes earlier. After an
+// occurrence the search resumes past its last byte, so occurrences of one
+// query never overlap. An empty query matches nothing.
+func (r *Reader) findQueries(start, end int) []match {
+	if start < 0 || end > len(r.b) || start >= end {
+		return nil
+	}
+	b := r.b[start:end]
+	found := make([][]match, len(r.queries))
+	var wg sync.WaitGroup
 	for j, query := range r.queries {
-		startsWith[query[0]] = append(startsWith[query[0]], j)
-	}
-	active := make([]int, 0, len(r.queries))
-	next := make([]int, 0, len(r.queries))
-	started := make([]int, 0, len(r.queries))
-	log.Debug().Int("start", start).Int("end", end).Msg("worker")
-	for i := start; i <= end; i++ {
-		c := r.b[i]
-		started = started[:0]
-		for _, j := range startsWith[c] {
-			if indexes[j] == 0 {
-				started = append(started, j)
-			}
+		if len(query) == 0 {
+			continue
 		}
-		next = next[:0]
-		for _, j := range active {
-			query := r.queries[j]
-			if c == query[indexes[j]] {
-				indexes[j]++
-				if indexes[j] == len(query) {
-					indexes[j] = 0
-					matches <- match{i, j}
-				} else {
-					next = append(next, j)
+		wg.Add(1)
+		go func(j int, query []byte) {
+			defer wg.Done()
+			var out []match
+			for i := 0; i <= len(b)-len(query); {
+				k := bytes.Index(b[i:], query)
+				if k < 0 {
+					break
 				}
-			} else {
-				indexes[j] = 0
+				i += k + len(query)
+				out = append(out, match{offset: start + i - 1, listenerIndex: j})
 			}
-		}
-		for _, j := range started {
-			if len(r.queries[j]) == 1 {
-				matches <- match{i, j}
-				continue
-			}
-			indexes[j] = 1
-			next = append(next, j)
-		}
-		active, next = next, active
+			found[j] = out
+		}(j, query)
 	}
+	wg.Wait()
+	matches := slices.Concat(found...)
+	slices.SortFunc(matches, func(a, b match) int {
+		return cmp.Or(cmp.Compare(a.offset, b.offset), cmp.Compare(a.listenerIndex, b.listenerIndex))
+	})
+	return matches
 }
 
 // Read continues reading the replay past the header until the EOF.
 func (r *Reader) Read() (err error) {
 	if r.offset >= len(r.b) {
-		// nothing to scan: the workers would index past the end of r.b
+		// nothing after the header to scan
 		return ErrNoReplayData
 	}
-	numWorkers := 5
-	var wg sync.WaitGroup
-	channel := make(chan match, 300)
-	start := r.offset
 	end := len(r.b)
 	if r.readPartial {
 		end /= 3
 	}
-	blockSize := int(math.Floor(float64(end-start) / float64(numWorkers)))
-	log.Debug().Int("workers", numWorkers).Int("blockSize", blockSize).Send()
-	wg.Add(numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		blockStart := r.offset + (i * blockSize)
-		blockEnd := blockStart + blockSize
-		if i > 0 {
-			blockStart += 1
-		}
-		if i == numWorkers-1 {
-			blockEnd = end - 1
-		}
-		go r.worker(blockStart, blockEnd, &wg, channel)
-	}
-	go func() {
-		wg.Wait()
-		close(channel)
-	}()
-	matches := make([]match, 0)
-	log.Debug().Msg("reading from channel")
-	for match := range channel {
-		matches = append(matches, match)
-	}
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].offset < matches[j].offset
-	})
+	matches := r.findQueries(r.offset, end)
 	log.Debug().Int("matches", len(matches)).Msg("calling listeners")
 	for _, entry := range matches {
 		for _, listener := range r.listeners[entry.listenerIndex] {
@@ -341,33 +306,29 @@ func (r *Reader) Listen(pattern []byte, callback func(r *Reader) error) {
 	r.listeners = append(r.listeners, []func(reader *Reader) error{callback})
 }
 
-// Seek skips through the replay until the pattern is found.
+// Seek skips through the replay until the pattern is found and leaves the
+// offset just past it. If the pattern is not found, it returns io.EOF.
+//
+// Like a walk over r.Bytes(1), which reports io.EOF on reaching the last byte
+// of r.b, Seek ignores a match that ends on that byte. On a miss the offset
+// moves to the end of r.b, or one byte on if it was already there.
 func (r *Reader) Seek(pattern []byte) error {
 	start := r.offset
-	i := 0
-	for {
-		b, err := r.Bytes(1)
-		if err != nil {
-			if Ok(err) {
-				pc, _, _, ok := runtime.Caller(1)
-				details := runtime.FuncForPC(pc)
-				if ok && details != nil {
-					log.Warn().Int("bytes", r.offset-start).Interface("func", details.Name()).Msg("large seek")
-				} else {
-					log.Warn().Int("bytes", r.offset-start).Msg("large seek")
-				}
-			}
-			return err
-		}
-		if b[0] != pattern[i] {
-			i = 0
-			continue
-		}
-		i++
-		if i == len(pattern) {
+	if start < len(r.b) {
+		if k := bytes.Index(r.b[start:len(r.b)-1], pattern); k >= 0 {
+			r.offset = start + k + len(pattern)
 			return nil
 		}
 	}
+	r.offset = max(len(r.b), start+1)
+	pc, _, _, ok := runtime.Caller(1)
+	details := runtime.FuncForPC(pc)
+	if ok && details != nil {
+		log.Warn().Int("bytes", r.offset-start).Interface("func", details.Name()).Msg("large seek")
+	} else {
+		log.Warn().Int("bytes", r.offset-start).Msg("large seek")
+	}
+	return io.EOF
 }
 
 // Skip increases the replay offset by n bytes.
