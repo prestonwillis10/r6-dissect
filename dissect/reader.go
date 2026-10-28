@@ -33,6 +33,7 @@ type Reader struct {
 	defuserRun             defuserRun          // Y10S4+: the plant/disable action the defuser timer currently belongs to
 	readPartial            bool                // reads up to the player info packets
 	playersRead            int
+	markers                *playerMarkers      // player record tags of this round, see playerMarkers
 	lastScoreboardKiller   string              // Y10S4+: player whose scoreboard kill counter increased last, until the next kill packet
 	pendingSBIDs           [][4]byte           // Y10S4+: sbIDs in header-entry order for deferred mapping
 	readPlayerOrder        []int               // Y10S4+: player indices in readPlayer order
