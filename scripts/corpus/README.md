@@ -15,8 +15,8 @@ R6_DISSECT_CORPUS=~/r6-corpus/y11s1 go test ./dissect/test -run TestAcceptance_M
 
 ## Known failures
 
-`TestAcceptance_Matches` stays green on this corpus while exactly the failures listed in `knownMatchFailures` (`dissect/test/acceptance_match_test.go`) occur, each naming the issue that owns it. When a fix lands, the test goes red for that entry: delete the entry. A new failing folder or invariant is red too.
+`TestAcceptance_Matches` stays green on this corpus while exactly the failures listed in `knownMatchFailures` (`dissect/test/acceptance_match_test.go`) occur, each naming the issue or run-log candidate that owns it. When a fix lands, the test goes red for that entry: delete the entry. A new failing folder or invariant is red too.
 
 ## Other corpora
 
-Any directory whose subdirectories each hold one match's `.rec` files works as `R6_DISSECT_CORPUS`, for example your own matches. `R6_DISSECT_REPLAY_DIRS` (round level) is a separate variable that belongs to `TestAcceptance_Replays` when that test is present.
+Any directory whose subdirectories each hold one match's `.rec` files works as `R6_DISSECT_CORPUS`, for example your own matches. `R6_DISSECT_REPLAY_DIRS` (round level) is a separate variable that belongs to `TestAcceptance_Replays`.

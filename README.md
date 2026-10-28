@@ -64,6 +64,8 @@ Example output (abbreviated):
   ]
 }
 ```
+`matchFeedback` is always an array: `[]` for a round with no events.
+
 Loadouts (Y8S1+) are the game's asset IDs for the primary/secondary weapon, secondary gadget and operator ability at the end of the preparation phase. IDs are stable across seasons and shared by every operator who can equip the item; names are not resolved.
 
 On Y9S4+ replays, a round whose replay holds no result (neither header score moved: the round was abandoned or remade, or the recording ended first) has `"won": false` on both teams and no `winCondition`, and credits no 1vX.
@@ -72,6 +74,8 @@ Export the entire match:
 ```bash
 r6-dissect Match-2026-03-26_21-19-17-21932 -o match.json
 ```
+A round file that cannot be read (empty, truncated or unreadable) is skipped: the match JSON lists it under `skippedRounds` (`file`, `index` = its 0-based position in the folder, `error`), stderr gets a `round skipped` line, and the CLI still exits 0. If no round file in the folder can be read, it exits 1.
+
 Export an Excel spreadsheet:
 ```bash
 r6-dissect Match-2026-03-26_21-19-17-21932 -o match.xlsx
@@ -90,6 +94,7 @@ See example outputs in [/examples](https://github.com/redraskal/r6-dissect/tree/
 | Field | Description |
 |---|---|
 | `spawn` | The attacker spawn location. For defenders, this is the defended site. |
+| `operator` | `name` and `id`. An operator ID newer than this build's operator table gets its `name` from the header `roleName` (for example `SOLID SNAKE` becomes `SolidSnake`); the `id` is unchanged. An `OperatorSwap` event to such an ID is named the same way when it is that player's final operator. |
 | `startingRoom` | The room a defender was in when the round started (Y9S1–Y11S2; Y11S3 replays no longer contain per-player room names). |
 
 ### Stats fields
@@ -183,7 +188,7 @@ R6_DISSECT_REPLAY_DIRS=/path/to/Match-A:/path/to/Match-B go test ./dissect/test 
 ```
 
 ### Acceptance on real replays
-Two opt-in checks run on replays that are not committed and are skipped when their variable is unset, which is how CI runs them. `R6_DISSECT_CORPUS` is a directory of match folders for the match-level `TestAcceptance_Matches`. `R6_DISSECT_REPLAY_DIRS` is for the round-level `TestAcceptance_Replays`, when that test is present. See [scripts/corpus/README.md](scripts/corpus/README.md) for building the Y11S1 fork corpus.
+Two opt-in checks run on replays that are not committed and are skipped when their variable is unset, which is how CI runs them. `R6_DISSECT_CORPUS` is a directory of match folders for the match-level `TestAcceptance_Matches`. `R6_DISSECT_REPLAY_DIRS` is for the round-level `TestAcceptance_Replays`. See [scripts/corpus/README.md](scripts/corpus/README.md) for building the Y11S1 fork corpus.
 
 ## Contributing
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how pull requests are reviewed and merged.
