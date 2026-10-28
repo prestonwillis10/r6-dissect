@@ -577,3 +577,19 @@ func TestReaderDamageTaken_RoleAndDeath(t *testing.T) {
 
 // pre builds samples read before the round clock started.
 func pre(hps ...uint32) []healthSample { return smp(false, ActionPhase, hps...) }
+
+// a player whose team index is out of range is treated as a defender, not a panic.
+func TestReaderDamageTaken_BadTeamIndex(t *testing.T) {
+	slot, health := [4]byte{1}, [4]byte{0xA1}
+	r := &Reader{
+		healthToSlot: map[[4]byte][4]byte{health: slot},
+		Header:       Header{Players: []Player{{Username: "x", TeamIndex: 5, slotID: slot[:]}}},
+	}
+	for _, s := range cat(pre(100), smp(true, ActionPhase, 80)) {
+		s.health = health
+		r.healthSamples = append(r.healthSamples, s)
+	}
+	if got := r.damageTaken(); got[0] != 20 {
+		t.Fatalf("want 20, got %v", got)
+	}
+}
