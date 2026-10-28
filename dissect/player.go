@@ -8,10 +8,8 @@ import (
 )
 
 func readPlayer(r *Reader) error {
-	idIndicator := []byte{0x33, 0xD8, 0x3D, 0x4F, 0x23}
-	if r.Header.CodeVersion <= Y7S2 {
-		idIndicator = []byte{0xE6, 0xF9, 0x7D, 0x86}
-	}
+	markers := r.playerMarkers()
+	idIndicator := markers.id
 	spawnIndicator := []byte{0xAF, 0x98, 0x99, 0xCA}
 	profileIDIndicator := []byte{0x8A, 0x50, 0x9B, 0xD0}
 	//unknownIndicator := []byte{0x22, 0xEE, 0xD4, 0x45, 0xC8, 0x08} // maybe player appearance?
@@ -101,7 +99,7 @@ func readPlayer(r *Reader) error {
 	// there seems to be more to this, but its a quick fix for atk op swaps for now
 	var uiID uint64
 	if r.Header.CodeVersion >= Y9S3 {
-		if err = r.Seek([]byte{0x38, 0xDF, 0xEE, 0x88}); err != nil {
+		if err = r.Seek(markers.uiID); err != nil {
 			return err
 		}
 		if err = r.Skip(13); err != nil {
