@@ -335,6 +335,7 @@ func (m *MatchReader) Data() any {
 		Header
 		MatchFeedback []MatchUpdate      `json:"matchFeedback"`
 		PlayerStats   []PlayerRoundStats `json:"stats"`
+		Warnings      []ReadWarning      `json:"warnings,omitempty"`
 	}
 	type output struct {
 		Rounds        []round            `json:"rounds"`
@@ -350,6 +351,7 @@ func (m *MatchReader) Data() any {
 			Header:        r.Header,
 			MatchFeedback: r.MatchFeedback,
 			PlayerStats:   r.PlayerStats(),
+			Warnings:      r.Warnings,
 		})
 	}
 	var skipped []SkippedRound
