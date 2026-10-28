@@ -317,8 +317,9 @@ func TestSeek_MissLogsPattern(t *testing.T) {
 }
 
 // A player record whose profile ID marker is missing fails readPlayer for the last player read
-// (its Seek runs to EOF). Only that player may be lost: every other player keeps the score,
-// kills and assists of a clean read.
+// (its Seek runs to EOF). On these two fixtures, every other player keeps the score, kills and
+// assists of a clean read. An event whose subject is the lost player (a kill on them, their
+// plant) can still fall back to another attribution; this test does not cover that.
 func TestRead_PlayerRecordFailureKeepsOtherPlayersStats(t *testing.T) {
 	marker := []byte{0x8A, 0x50, 0x9B, 0xD0} // readPlayer's profileIDIndicator
 	for _, path := range []string{failureFixture, "test/data/replays/valid/Y11S2/custom_solid_snake.rec"} {
